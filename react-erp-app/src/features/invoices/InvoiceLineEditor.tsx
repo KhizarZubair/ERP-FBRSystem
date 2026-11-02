@@ -10,7 +10,15 @@ export function InvoiceLineEditor({ line, index, companyId, invoiceDate, onChang
 }) {
     const update = (key: keyof InvoiceLine, value: string) => onChange({ ...line, [key]: value, ...(key === "tax_rate_percent" ? { tax_rate_label: value + "%" } : {}) });
     const net = Math.max(0, Number(line.quantity) * Number(line.unit_price) - Number(line.discount));
-    const total = net + net * Number(line.tax_rate_percent) / 100 + Number(line.extra_tax) + Number(line.further_tax) + Number(line.fed_payable) - Number(line.sales_tax_withheld_at_source);
+    const retailPrice = Number(line.fixed_notified_value_or_retail_price) || 0;
+    const isThirdSchedule = retailPrice > 0 && (
+        (line.sale_type && (line.sale_type.toLowerCase().includes("3rd schedule") || line.sale_type.toLowerCase().includes("third schedule"))) ||
+        retailPrice > 0
+    );
+    const taxBase = isThirdSchedule ? (Number(line.quantity) * retailPrice) : net;
+    const tax = taxBase * Number(line.tax_rate_percent) / 100;
+    const furtherTax = isThirdSchedule ? 0 : Number(line.further_tax || 0);
+    const total = net + tax + Number(line.extra_tax || 0) + furtherTax + Number(line.fed_payable || 0) - Number(line.sales_tax_withheld_at_source || 0);
     return <section className="invoice-line-row" aria-label={`Invoice item ${index + 1}`}>
         <div className="invoice-line-main">
             <div className="invoice-line-product"><SearchableSelect<ItemRecord> label={`Item ${index + 1}`} value={String(line.item_id)}

@@ -33,12 +33,30 @@ function ItemEditor({ companyId, id, canEdit }: { companyId: number; id: string;
             : id === "new" || item ? editing ? <ItemForm {...{ companyId, item }} onCancel={() => id === "new" ? navigate("/items") : setEditing(false)}
                 onSaved={record => { if (id === "new") navigate("/items/" + record.id); else { setItem(record); setEditing(false); setSaved(true); } }} />
                 : item && <Card title="Product details"><div className="form-grid">
-                    {[["Product name", item.name], ["SKU", item.sku], ["Description", item.description], ["HS code", item.hs_code],
-                        ["Unit", item.unit_of_measurement], ["Sale type", item.sale_type], ["Tax rate", item.tax_rate_label],
-                        ["Track stock", item.track_stock ? "Yes" : "No"], ["Reorder level", item.reorder_level],
-                        ["Notified / retail value", item.fixed_notified_value_or_retail_price], ["SRO schedule", item.sro_schedule_no || "Not provided"],
-                        ["SRO serial", item.sro_item_serial_no || "Not provided"], ["Status", item.is_active ? "Active" : "Inactive"]].map(([label, value]) =>
-                            <div key={label}><strong>{label}</strong><p>{value}</p></div>)}
+                    {[
+                        ["Product name", <span>{item.name}</span>],
+                        ["SKU", <span>{item.sku}</span>],
+                        ["Description", <span>{item.description}</span>],
+                        ["HS code", <span>{item.hs_code}</span>],
+                        ["Unit", <span>{item.unit_of_measurement}</span>],
+                        ["Sale type", <span>{item.sale_type}</span>],
+                        ["Tax rate", <span>{item.tax_rate_label}</span>],
+                        ["Track stock", <span>{item.track_stock ? "Yes" : "No"}</span>],
+                        ["Reorder level", <span>{item.reorder_level}</span>],
+                        ["Notified / retail value", <div>
+                            <span>{Number(item.fixed_notified_value_or_retail_price) > 0 ? money(Number(item.fixed_notified_value_or_retail_price)) : "Not set (Standard)"}</span>
+                            {Number(item.fixed_notified_value_or_retail_price) > 0 && <span style={{ marginLeft: "0.5rem" }}><Badge tone="success">3rd Schedule (FMCG)</Badge></span>}
+                        </div>],
+                        ["SRO schedule", <div>
+                            <span>{item.sro_schedule_no || "Not provided"}</span>
+                            {item.sro_schedule_no && <span style={{ marginLeft: "0.5rem" }}><Badge tone="neutral">SRO Exempt/Reduced</Badge></span>}
+                        </div>],
+                        ["SRO serial", <span>{item.sro_item_serial_no || "Not provided"}</span>],
+                        ["FED payable", <span>{Number(item.fed_payable) > 0 ? money(Number(item.fed_payable)) : "0.00"}</span>],
+                        ["Extra tax", <span>{Number(item.extra_tax) > 0 ? money(Number(item.extra_tax)) : "0.00"}</span>],
+                        ["Status", <Badge tone={item.is_active ? "success" : "neutral"}>{item.is_active ? "Active" : "Inactive"}</Badge>],
+                    ].map(([label, value]) =>
+                        <div key={label as string}><strong>{label as string}</strong><div>{value}</div></div>)}
                 </div></Card>
             : <p role="status">Loading item…</p>}
         {item && <ItemPrices {...{ companyId, canEdit }} itemId={item.id} />}
@@ -95,7 +113,16 @@ function ItemDirectory({ companyId, canEdit }: { companyId: number; canEdit: boo
                 pagination={{ page: result?.meta.current_page || 1, pages: result?.meta.last_page || 1, total: result?.meta.total || 0, pageSize: 15,
                     onPage: value => { setPage(value); setLoading(true); }, sort, onSort: (key, descending) => { setSort({ key, descending }); setPage(1); setLoading(true); } }}
                 columns={[
-                    { key: "name", label: "Product / SKU", sortValue: item => item.name, render: item => <><strong>{item.name}</strong><div className="cell-subtitle">{item.sku}</div></> },
+                    { key: "name", label: "Product / SKU", sortValue: item => item.name, render: item => <>
+                        <strong>{item.name}</strong>
+                        <div className="cell-subtitle">{item.sku}</div>
+                        {(Number(item.fixed_notified_value_or_retail_price) > 0 || item.sro_schedule_no) && (
+                            <div style={{ display: "flex", gap: "0.25rem", flexWrap: "wrap", marginTop: "0.25rem" }}>
+                                {Number(item.fixed_notified_value_or_retail_price) > 0 && <Badge tone="success">Retail: {money(Number(item.fixed_notified_value_or_retail_price))}</Badge>}
+                                {item.sro_schedule_no && <Badge tone="neutral">SRO: {item.sro_schedule_no}</Badge>}
+                            </div>
+                        )}
+                    </> },
                     { key: "hs_code", label: "HS code", sortValue: item => item.hs_code, render: item => item.hs_code },
                     { key: "unit", label: "Unit", render: item => item.unit_of_measurement },
                     { key: "price", label: "Current price excl. tax", sortValue: item => Number(item.current_unit_price || 0), render: item => item.current_unit_price === null || item.current_unit_price === undefined ? "No effective price" : money(Number(item.current_unit_price)) },

@@ -6,7 +6,7 @@ import { InvoiceConfirmDialog } from "./InvoiceConfirmDialog";
 import { InvoiceSummary } from "./InvoiceSummary";
 import { invoiceBase, statusLabel } from "./invoiceApi";
 import type { InvoiceRecord } from "./invoiceApi";
-type Attempt = { id: number; environment: string; operation: string; status: string; http_status: number | null; reconciliation_notes?: string | null; error_code:string|null; error: string | null; guidance:string|null; fbr_invoice_number: string | null; lines: { line_number: number; status: string; error_code: string | null; error: string | null; guidance:string|null }[] };
+type Attempt = { id: number; environment: string; operation: string; status: string; http_status: number | null; reconciliation_notes?: string | null; error_code: string | null; error: string | null; category?: string | null; guidance: string | null; solution?: string | null; fbr_invoice_number: string | null; lines: { line_number: number; status: string; error_code: string | null; error: string | null; category?: string | null; guidance: string | null; solution?: string | null }[] };
 type Details = { environments: string[]; readiness:{ready:boolean;blockers:string[];scenarios:Record<string,{description:string}>}; history: Attempt[] };
 export function FbrInvoicePanel({ companyId, invoice, verified, onUpdated }: { companyId: number; invoice: InvoiceRecord; verified: boolean; onUpdated: () => void }) {
     const [details, setDetails] = useState<Details>();
@@ -67,9 +67,51 @@ export function FbrInvoicePanel({ companyId, invoice, verified, onUpdated }: { c
                     <Button disabled={busy || !verified || validated !== key} onClick={() => setConfirm(true)}>Submit to FBR</Button></div>}
                 {blocked && <Notice tone="warning">{invoice.fbr_status === "unknown" ? "Submission result unknown. Do not resend. Confirm the result with PRAL using the saved attempt history." : "This invoice is already submitted or a submission is in progress."}</Notice>}
             </>}
-            {result && <Notice tone={result.status === "accepted" ? "success" : "warning"}>{result.operation === "validate" && result.status === "accepted" ? "FBR validation passed. Complete final verification to submit." : statusLabel(result.status)}{result.http_status ? " — HTTP " + result.http_status : ""}{result.error_code?` — ${result.error_code}`:""}{result.error ? ": " + result.error : ""}{result.guidance?" "+result.guidance:""}{result.fbr_invoice_number ? " — FBR reference: " + result.fbr_invoice_number : ""}</Notice>}
-            {result?.lines.filter(line => line.error).map(line => <p className="field-error" key={line.line_number}>Item {line.line_number}: {line.error_code} {line.error} {line.guidance}</p>)}
-            {!!details.history.length && <div className="section-gap"><h3>Submission history</h3>{details.history.map(attempt => <div key={attempt.id}>{attempt.operation === "submit" && ["unknown", "processing"].includes(attempt.status) && <Button variant="secondary" onClick={() => { setChecked(false); setNotes(""); setReference(""); setReconcile(attempt); }}>Record PRAL-confirmed outcome</Button>}{attempt.reconciliation_notes && <p>{attempt.reconciliation_notes}</p>}<p>#{attempt.id} · {statusLabel(attempt.environment)} · {statusLabel(attempt.operation)} · {statusLabel(attempt.status)}{attempt.http_status ? " · HTTP " + attempt.http_status : ""}{attempt.fbr_invoice_number ? " · " + attempt.fbr_invoice_number : ""}</p>{attempt.error && <p className="field-error">{attempt.error_code} {attempt.error} {attempt.guidance}</p>}{attempt.lines.filter(line => line.error).map(line => <p className="field-error" key={line.line_number}>Item {line.line_number}: {line.error_code} {line.error} {line.guidance}</p>)}</div>)}</div>}
+            {result && result.status === "accepted" && <Notice tone="success">{result.operation === "validate" ? "FBR validation passed. Complete final verification to submit." : "Invoice successfully submitted to FBR."}{result.fbr_invoice_number ? " — FBR reference: " + result.fbr_invoice_number : ""}</Notice>}
+            {result && result.status !== "accepted" && (
+                <div className="fbr-error-resolution-card" role="alert">
+                    <div className="fbr-error-resolution-header">
+                        <span className="fbr-error-badge">Error {result.error_code || "Rejected"}</span>
+                        {result.category && <span className="fbr-error-category">{result.category}</span>}
+                        {result.http_status && <span className="fbr-error-category">HTTP {result.http_status}</span>}
+                    </div>
+                    {result.error && <p className="fbr-error-message">{result.error}</p>}
+                    {result.guidance && <p className="fbr-error-guidance">💡 {result.guidance}</p>}
+                    {result.solution && <div className="fbr-error-solution"><strong>Actionable Fix:</strong> {result.solution}</div>}
+                </div>
+            )}
+            {result?.lines.filter(line => line.error).map(line => (
+                <div className="fbr-error-resolution-card fbr-error-resolution-card--line" key={line.line_number}>
+                    <div className="fbr-error-resolution-header">
+                        <span className="fbr-error-badge">Line {line.line_number}: Error {line.error_code || "Invalid"}</span>
+                        {line.category && <span className="fbr-error-category">{line.category}</span>}
+                    </div>
+                    <p className="fbr-error-message">{line.error}</p>
+                    {line.guidance && <p className="fbr-error-guidance">💡 {line.guidance}</p>}
+                    {line.solution && <div className="fbr-error-solution"><strong>Fix:</strong> {line.solution}</div>}
+                </div>
+            ))}
+            {!!details.history.length && <div className="section-gap"><h3>Submission history</h3>{details.history.map(attempt => <div key={attempt.id} style={{ marginBottom: "16px", paddingBottom: "12px", borderBottom: "1px solid var(--color-border)" }}>{attempt.operation === "submit" && ["unknown", "processing"].includes(attempt.status) && <Button variant="secondary" onClick={() => { setChecked(false); setNotes(""); setReference(""); setReconcile(attempt); }}>Record PRAL-confirmed outcome</Button>}{attempt.reconciliation_notes && <p>{attempt.reconciliation_notes}</p>}<p>#{attempt.id} · {statusLabel(attempt.environment)} · {statusLabel(attempt.operation)} · {statusLabel(attempt.status)}{attempt.http_status ? " · HTTP " + attempt.http_status : ""}{attempt.fbr_invoice_number ? " · " + attempt.fbr_invoice_number : ""}</p>{attempt.error && (
+                <div className="fbr-error-resolution-card fbr-error-resolution-card--line">
+                    <div className="fbr-error-resolution-header">
+                        <span className="fbr-error-badge">Error {attempt.error_code || "Failed"}</span>
+                        {attempt.category && <span className="fbr-error-category">{attempt.category}</span>}
+                    </div>
+                    <p className="fbr-error-message">{attempt.error}</p>
+                    {attempt.guidance && <p className="fbr-error-guidance">💡 {attempt.guidance}</p>}
+                    {attempt.solution && <div className="fbr-error-solution"><strong>Fix:</strong> {attempt.solution}</div>}
+                </div>
+            )}{attempt.lines.filter(line => line.error).map(line => (
+                <div className="fbr-error-resolution-card fbr-error-resolution-card--line" key={line.line_number}>
+                    <div className="fbr-error-resolution-header">
+                        <span className="fbr-error-badge">Line {line.line_number}: Error {line.error_code || "Invalid"}</span>
+                        {line.category && <span className="fbr-error-category">{line.category}</span>}
+                    </div>
+                    <p className="fbr-error-message">{line.error}</p>
+                    {line.guidance && <p className="fbr-error-guidance">💡 {line.guidance}</p>}
+                    {line.solution && <div className="fbr-error-solution"><strong>Fix:</strong> {line.solution}</div>}
+                </div>
+            ))}</div>)}</div>}
         </>}
         {reconcile && <Modal title="Reconcile uncertain submission" busy={busy} onClose={() => setReconcile(undefined)} footer={<><Button variant="secondary" disabled={busy} onClick={() => setReconcile(undefined)}>Cancel</Button><Button disabled={busy || !checked || notes.trim().length < 20 || (outcome === "accepted" && !reference.trim())} onClick={() => { void resolveUnknown(); }}>Save verified outcome</Button></>}>
             <Notice tone="warning">Use only after checking the FBR portal or receiving PRAL confirmation. Do not guess the result.</Notice>

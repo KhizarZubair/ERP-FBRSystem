@@ -24,6 +24,8 @@ export function ItemForm({ companyId, item, onSaved, onCancel }: {
         name: key, value: draft[key] || "", error: errors[key]?.[0],
         onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => change(key, event.target.value),
     });
+    const isExemptOrZero = draft.tax_rate_label === "Exempt" || draft.tax_rate_label === "0%" || draft.tax_rate_percent === "0";
+
     return <Card title={item ? "Edit Product" : "Create Product"}><form onSubmit={async event => {
         event.preventDefault(); if (lock.current) return;
         lock.current = true; setBusy(true); setMessage(""); setErrors({});
@@ -35,7 +37,16 @@ export function ItemForm({ companyId, item, onSaved, onCancel }: {
             const today = new Date();
             const effectiveFrom = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
             const price = { price_list: "Standard" as const, unit_price: unitPrice, currency: "PKR" as const, effective_from: effectiveFrom, effective_to: "", is_active: true };
-            const response = await itemApi.save(companyId, { ...draft, extra_tax: "0", fed_payable: "0", fixed_notified_value_or_retail_price: "0", sro_schedule_no: "", sro_item_serial_no: "" }, item?.id, price); onSaved(response.data);
+            const payload: ItemDraft = {
+                ...draft,
+                fixed_notified_value_or_retail_price: draft.fixed_notified_value_or_retail_price?.trim() || "0",
+                extra_tax: draft.extra_tax?.trim() || "0",
+                fed_payable: draft.fed_payable?.trim() || "0",
+                sro_schedule_no: draft.sro_schedule_no?.trim() || null,
+                sro_item_serial_no: draft.sro_item_serial_no?.trim() || null,
+            };
+            const response = await itemApi.save(companyId, payload, item?.id, price);
+            onSaved(response.data);
         }
         catch (error) { setMessage(error instanceof Error ? error.message : "Could not save item."); if (error instanceof ApiError) setErrors(error.errors); }
         finally { lock.current = false; setBusy(false); }
@@ -43,8 +54,6 @@ export function ItemForm({ companyId, item, onSaved, onCancel }: {
         {message && <Notice tone="warning">{message}</Notice>}
         <fieldset className="form-fields" disabled={busy}>
             <div className="form-grid">
-
-
                 <Input label="Product Name" required maxLength={255} placeholder="e.g., Laptop" {...field("name")} />
                 <Input label="Product Code" required maxLength={80} pattern={"[A-Za-z0-9_\\-]+"} placeholder="e.g., LAPTOP-001" {...field("sku")} />
                 <Textarea label="Product Description" required maxLength={4000} placeholder="Product specifications or details" {...field("description")} />
@@ -54,6 +63,60 @@ export function ItemForm({ companyId, item, onSaved, onCancel }: {
                 <Select label="Sales Tax Rate" required options={["18%", "0%", "Exempt", "1%", "5%", "10%", "12%", "15%"]} value={draft.tax_rate_label} onChange={event => { change("tax_rate_label", event.target.value); change("tax_rate_percent", event.target.value === "Exempt" ? "0" : event.target.value.replace("%", "")); }} />
                 <Input label="Unit Price (Excl. Tax)" type="number" min="0.01" step="0.01" required placeholder="e.g. 500.00" value={unitPrice} error={errors.unit_price?.[0]} onChange={event => { setUnitPrice(event.target.value); setErrors(current => ({ ...current, unit_price: [] })); }} />
 
+                <div style={{ gridColumn: "1 / -1", marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid var(--border-color, #e2e8f0)" }}>
+                    <h3 style={{ margin: "0 0 0.25rem 0", fontSize: "1.05rem", fontWeight: 600 }}>FBR Sector & Fiscal Classification</h3>
+                    <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted, #64748b)" }}>
+                        Configure Printed Retail Price for FMCG / 3rd Schedule goods, or SRO details for Exempt or Concessionary items.
+                    </p>
+                </div>
+                {isExemptOrZero && (
+                    <div style={{ gridColumn: "1 / -1" }}>
+                        <Notice tone="info">
+                            <strong>SRO Details Required:</strong> FBR mandates SRO Schedule Number & Item Serial Number for Exempt / 0% goods under Section 10. Leaving them blank causes FBR Error 0077 / 0079.
+                        </Notice>
+                    </div>
+                )}
+                <Input
+                    label="Printed Retail Price / Fixed Notified Value"
+                    type="number"
+                    min="0"
+                    step="any"
+                    placeholder="0.00"
+                    hint="Mandatory for 3rd Schedule (FMCG). FBR calculates tax on Retail Price × Quantity (Sec 3(2)(a))."
+                    {...field("fixed_notified_value_or_retail_price")}
+                />
+                <Input
+                    label="SRO Schedule Number"
+                    maxLength={100}
+                    placeholder="e.g. Sixth Schedule, Table-1"
+                    hint="Official FBR SRO Schedule Number (for Exempt/Reduced rate items)"
+                    {...field("sro_schedule_no")}
+                />
+                <Input
+                    label="SRO Item Serial Number"
+                    maxLength={100}
+                    placeholder="e.g. Item 12(i)"
+                    hint="Item serial number within the SRO Schedule"
+                    {...field("sro_item_serial_no")}
+                />
+                <Input
+                    label="Federal Excise Duty (FED Payable)"
+                    type="number"
+                    min="0"
+                    step="any"
+                    placeholder="0.00"
+                    hint="Applicable for FED in Sales Tax mode (Beverages, Tobacco, etc.)"
+                    {...field("fed_payable")}
+                />
+                <Input
+                    label="Extra Tax"
+                    type="number"
+                    min="0"
+                    step="any"
+                    placeholder="0.00"
+                    hint="Special extra tax percentage or fixed value where applicable"
+                    {...field("extra_tax")}
+                />
             </div>
             <FormActions><Button variant="secondary" onClick={onCancel}>Cancel</Button><Button type="submit">{busy ? "Saving…" : item ? "Update Product" : "Save Product"}</Button></FormActions>
         </fieldset>

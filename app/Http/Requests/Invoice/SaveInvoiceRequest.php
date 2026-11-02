@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Invoice;
 
 use App\Services\CustomerService;
+use App\Services\FbrScenarioRegistry;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -18,7 +19,7 @@ class SaveInvoiceRequest extends FormRequest
     public function rules(): array
     {
         $company = $this->attributes->get('workspace');
-        $allowedScenarios = $company->allowed_sandbox_scenarios ?? [];
+        $allowedScenarios = $company ? app(FbrScenarioRegistry::class)->allowedCodesForCompany($company) : [];
         $amount = ['required', 'numeric', 'decimal:0,6', 'min:0', 'max:999999999'];
         $optional = ['nullable', 'numeric', 'decimal:0,6', 'min:0', 'max:999999999'];
 

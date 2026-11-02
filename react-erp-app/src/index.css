@@ -1194,3 +1194,64 @@ tbody td:first-child { min-width: 140px; }
         display: none !important;
     }
 }
+
+/* FBR Interactive Error Resolution Cards */
+.fbr-error-resolution-card {
+    margin-top: 14px;
+    padding: 14px 16px;
+    border: 1px solid var(--color-danger, #d32f2f);
+    border-left: 4px solid var(--color-danger, #d32f2f);
+    border-radius: var(--radius);
+    background: rgba(211, 47, 47, 0.05);
+}
+.fbr-error-resolution-card--line {
+    margin-top: 8px;
+    padding: 10px 14px;
+    border-left-width: 3px;
+    font-size: 13px;
+}
+.fbr-error-resolution-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+}
+.fbr-error-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 4px;
+    background: #d32f2f;
+    color: #fff;
+}
+.fbr-error-category {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-muted);
+}
+.fbr-error-message {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 4px 0;
+}
+.fbr-error-guidance {
+    font-size: 13px;
+    color: var(--color-text);
+    margin: 4px 0;
+}
+.fbr-error-solution {
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.85);
+    border-radius: 6px;
+    font-size: 12px;
+    color: #842029;
+    border-left: 3px solid #f5c2c7;
+}
+

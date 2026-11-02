@@ -9,6 +9,24 @@ use Illuminate\Validation\Validator;
 
 class SaveItemRequest extends ItemWorkspaceRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $merge = [];
+        foreach (['sro_schedule_no', 'sro_item_serial_no'] as $sroField) {
+            if ($this->has($sroField) && (trim((string) $this->input($sroField)) === '' || $this->input($sroField) === null)) {
+                $merge[$sroField] = null;
+            }
+        }
+        foreach (['fixed_notified_value_or_retail_price', 'extra_tax', 'fed_payable'] as $numField) {
+            if ($this->has($numField) && (trim((string) $this->input($numField)) === '' || $this->input($numField) === null)) {
+                $merge[$numField] = '0';
+            }
+        }
+        if ($merge !== []) {
+            $this->merge($merge);
+        }
+    }
+
     public function rules(): array
     {
         $unique = Rule::unique(Item::class, 'sku')->where('company_id', (int) $this->route('company'));

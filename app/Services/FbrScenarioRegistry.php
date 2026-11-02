@@ -8,11 +8,10 @@ use Illuminate\Validation\ValidationException;
 class FbrScenarioRegistry
 {
     /**
-     * Complete catalogue of FBR sandbox scenarios (SN001 to SN028).
-     * Currently, only SN001 and SN002 are officially supported and executable.
-     * Other scenarios are catalogued as unsupported until official fiscal formulas and SRO rules are implemented.
+     * Complete official catalogue of FBR digital invoicing sandbox scenarios (SN001 to SN028)
+     * as defined in FBR Official Documentation (Section 9 & Section 10).
      *
-     * @return array<string, array{id: string, title: string, description: string, sale_type: string, buyer_type: string, further_tax: float, is_supported: bool}>
+     * @return array<string, array{id: string, title: string, description: string, sale_type: string, buyer_type: string, rate: string, further_tax: float, retail_price?: float, fed_payable?: float, extra_tax?: float, sro_schedule_no?: string, sro_item_serial_no?: string, hs_code?: string, uom?: string, is_supported: bool}>
      */
     public function definitions(): array
     {
@@ -20,103 +19,473 @@ class FbrScenarioRegistry
             'SN001' => [
                 'id' => 'SN001',
                 'title' => 'Goods at standard rate to registered buyers',
-                'description' => 'Goods at standard rate to registered buyers',
+                'description' => 'Goods at standard 18% rate to registered buyers (default)',
                 'sale_type' => 'Goods at Standard Rate (default)',
                 'buyer_type' => 'Registered',
+                'rate' => '18%',
                 'further_tax' => 0.0,
                 'is_supported' => true,
             ],
             'SN002' => [
                 'id' => 'SN002',
                 'title' => 'Goods at standard rate to unregistered buyers',
-                'description' => 'Goods at standard rate to unregistered buyers',
+                'description' => 'Goods at standard 18% rate to unregistered buyers (+Further Tax)',
                 'sale_type' => 'Goods at Standard Rate (default)',
                 'buyer_type' => 'Unregistered',
+                'rate' => '18%',
                 'further_tax' => 120.0,
                 'is_supported' => true,
             ],
             'SN003' => [
                 'id' => 'SN003',
-                'title' => 'Exempt goods',
-                'description' => 'Exempt goods to registered or unregistered buyers',
-                'sale_type' => 'Exempt Goods',
+                'title' => 'Sale of Steel (Melted and Re-Rolled)',
+                'description' => 'Steel sector supply by melted and re-rolled manufacturers',
+                'sale_type' => 'Steel (melted and re-rolled)',
                 'buyer_type' => 'Registered',
+                'rate' => '18%',
+                'hs_code' => '7206.1000',
+                'uom' => 'Metric Ton',
                 'further_tax' => 0.0,
-                'is_supported' => false,
+                'is_supported' => true,
             ],
             'SN004' => [
                 'id' => 'SN004',
-                'title' => 'Zero-rated goods',
-                'description' => 'Zero-rated supplies',
-                'sale_type' => 'Zero Rated Goods',
+                'title' => 'Sale by Ship Breakers',
+                'description' => 'Supply by ship breaking industry under special sector rules',
+                'sale_type' => 'Ship breakers',
                 'buyer_type' => 'Registered',
+                'rate' => '18%',
+                'hs_code' => '8908.0000',
+                'uom' => 'Metric Ton',
                 'further_tax' => 0.0,
-                'is_supported' => false,
+                'is_supported' => true,
             ],
             'SN005' => [
                 'id' => 'SN005',
-                'title' => 'Reduced-rate goods',
-                'description' => 'Goods at reduced sales tax rate under SRO/Schedule',
+                'title' => 'Goods at reduced rate',
+                'description' => 'Supplies chargeable at concessionary rate under 8th Schedule / SRO',
                 'sale_type' => 'Goods at Reduced Rate',
                 'buyer_type' => 'Registered',
+                'rate' => '1%',
+                'sro_schedule_no' => 'Eighth Schedule, Table-1',
+                'sro_item_serial_no' => 'Item 1',
                 'further_tax' => 0.0,
-                'is_supported' => false,
+                'is_supported' => true,
             ],
             'SN006' => [
                 'id' => 'SN006',
-                'title' => 'Debit/Credit Note against standard rate invoice',
-                'description' => 'Adjustment note for goods at standard rate',
-                'sale_type' => 'Goods at Standard Rate (default)',
+                'title' => 'Exempt goods sale',
+                'description' => 'Supplies exempt from sales tax under 6th Schedule to Sales Tax Act',
+                'sale_type' => 'Exempt Goods',
                 'buyer_type' => 'Registered',
+                'rate' => '0%',
+                'sro_schedule_no' => 'Sixth Schedule, Table-1',
+                'sro_item_serial_no' => 'Item 1',
                 'further_tax' => 0.0,
-                'is_supported' => false,
+                'is_supported' => true,
             ],
             'SN007' => [
                 'id' => 'SN007',
-                'title' => 'Debit/Credit Note against reduced rate invoice',
-                'description' => 'Adjustment note for goods at reduced rate',
-                'sale_type' => 'Goods at Reduced Rate',
+                'title' => 'Zero rated goods sale',
+                'description' => 'Zero-rated supplies (Exports under Section 4 or 5th Schedule)',
+                'sale_type' => 'Zero Rated Goods',
                 'buyer_type' => 'Registered',
+                'rate' => '0%',
                 'further_tax' => 0.0,
-                'is_supported' => false,
+                'is_supported' => true,
             ],
             'SN008' => [
                 'id' => 'SN008',
                 'title' => '3rd Schedule goods (Retail Price)',
-                'description' => 'Goods chargeable on retail price under Third Schedule',
+                'description' => 'FMCG & Third Schedule goods taxed on printed Retail Price (Sec 3(2)(a))',
                 'sale_type' => 'Third Schedule Goods',
                 'buyer_type' => 'Registered',
+                'rate' => '18%',
+                'retail_price' => 1500.0,
                 'further_tax' => 0.0,
-                'is_supported' => false,
+                'is_supported' => true,
+            ],
+            'SN009' => [
+                'id' => 'SN009',
+                'title' => 'Cotton Spinners purchase from Cotton Ginners',
+                'description' => 'Textile sector cotton supply from ginning factories',
+                'sale_type' => 'Cotton Ginners',
+                'buyer_type' => 'Registered',
+                'rate' => '18%',
+                'hs_code' => '5201.0019',
+                'uom' => 'KG',
+                'further_tax' => 0.0,
+                'is_supported' => true,
+            ],
+            'SN010' => [
+                'id' => 'SN010',
+                'title' => 'Telecom services rendered',
+                'description' => 'Telecommunication services under Federal / Provincial service tax',
+                'sale_type' => 'Services',
+                'buyer_type' => 'Registered',
+                'rate' => '19.5%',
+                'hs_code' => '9812.0000',
+                'uom' => 'Numbers, pieces, units',
+                'further_tax' => 0.0,
+                'is_supported' => true,
+            ],
+            'SN011' => [
+                'id' => 'SN011',
+                'title' => 'Toll Manufacturing sale by Steel sector',
+                'description' => 'Toll manufacturing / conversion services in Steel sector',
+                'sale_type' => 'Toll Manufacturing',
+                'buyer_type' => 'Registered',
+                'rate' => '18%',
+                'hs_code' => '7206.1000',
+                'uom' => 'Metric Ton',
+                'further_tax' => 0.0,
+                'is_supported' => true,
+            ],
+            'SN012' => [
+                'id' => 'SN012',
+                'title' => 'Sale of Petroleum products',
+                'description' => 'Petroleum and downstream fuel product distribution',
+                'sale_type' => 'Petroleum Products',
+                'buyer_type' => 'Registered',
+                'rate' => '18%',
+                'hs_code' => '2710.1210',
+                'uom' => 'Liters',
+                'further_tax' => 0.0,
+                'is_supported' => true,
+            ],
+            'SN013' => [
+                'id' => 'SN013',
+                'title' => 'Electricity Supply to Retailers',
+                'description' => 'Electric power distribution under special sales tax regime',
+                'sale_type' => 'Electricity Supply',
+                'buyer_type' => 'Registered',
+                'rate' => '18%',
+                'hs_code' => '2716.0000',
+                'uom' => 'KWH',
+                'further_tax' => 0.0,
+                'is_supported' => true,
+            ],
+            'SN014' => [
+                'id' => 'SN014',
+                'title' => 'Sale of Gas to CNG stations',
+                'description' => 'Natural gas transmission and supply to CNG fuel stations',
+                'sale_type' => 'Gas Supply to CNG',
+                'buyer_type' => 'Registered',
+                'rate' => '18%',
+                'hs_code' => '2711.2100',
+                'uom' => 'MMBTU',
+                'further_tax' => 0.0,
+                'is_supported' => true,
+            ],
+            'SN015' => [
+                'id' => 'SN015',
+                'title' => 'Sale of mobile phones',
+                'description' => 'Cellular devices under Ninth Schedule sales tax rates',
+                'sale_type' => 'Mobile Phones',
+                'buyer_type' => 'Registered',
+                'rate' => '18%',
+                'hs_code' => '8517.1219',
+                'uom' => 'Numbers, pieces, units',
+                'further_tax' => 0.0,
+                'is_supported' => true,
+            ],
+            'SN016' => [
+                'id' => 'SN016',
+                'title' => 'Processing / Conversion of Goods',
+                'description' => 'Processing, fabrication or conversion of goods for another entity',
+                'sale_type' => 'Processing / Conversion',
+                'buyer_type' => 'Registered',
+                'rate' => '18%',
+                'further_tax' => 0.0,
+                'is_supported' => true,
+            ],
+            'SN017' => [
+                'id' => 'SN017',
+                'title' => 'Sale of Goods where FED is charged in ST mode',
+                'description' => 'Federal Excise Duty in Sales Tax mode (Beverages, tobacco, lubricants)',
+                'sale_type' => 'Goods with FED in ST mode',
+                'buyer_type' => 'Registered',
+                'rate' => '18%',
+                'fed_payable' => 50.0,
+                'further_tax' => 0.0,
+                'is_supported' => true,
+            ],
+            'SN018' => [
+                'id' => 'SN018',
+                'title' => 'Services rendered (FED in ST mode)',
+                'description' => 'Taxable services with Federal Excise Duty levied in ST mode',
+                'sale_type' => 'Services with FED in ST mode',
+                'buyer_type' => 'Registered',
+                'rate' => '16%',
+                'hs_code' => '9801.0000',
+                'uom' => 'Numbers, pieces, units',
+                'further_tax' => 0.0,
+                'is_supported' => true,
+            ],
+            'SN019' => [
+                'id' => 'SN019',
+                'title' => 'Provincial Sales Tax on services',
+                'description' => 'Services subject to Provincial Revenue Authority sales tax (PRA/SRB/KPRA/BRA)',
+                'sale_type' => 'Services (Provincial Sales Tax)',
+                'buyer_type' => 'Registered',
+                'rate' => '13%',
+                'hs_code' => '9801.0000',
+                'uom' => 'Numbers, pieces, units',
+                'further_tax' => 0.0,
+                'is_supported' => true,
+            ],
+            'SN020' => [
+                'id' => 'SN020',
+                'title' => 'Electric Vehicles',
+                'description' => 'Automotive sector electric vehicles under concessionary tax regime',
+                'sale_type' => 'Electric Vehicles',
+                'buyer_type' => 'Registered',
+                'rate' => '1%',
+                'hs_code' => '8703.8090',
+                'uom' => 'Numbers, pieces, units',
+                'further_tax' => 0.0,
+                'is_supported' => true,
+            ],
+            'SN021' => [
+                'id' => 'SN021',
+                'title' => 'Cement / Concrete Block',
+                'description' => 'Cement and pre-cast concrete block manufacturing sector supply',
+                'sale_type' => 'Cement / Concrete Block',
+                'buyer_type' => 'Registered',
+                'rate' => '18%',
+                'hs_code' => '2523.2900',
+                'uom' => 'Metric Ton',
+                'further_tax' => 0.0,
+                'is_supported' => true,
+            ],
+            'SN022' => [
+                'id' => 'SN022',
+                'title' => 'Potassium Chlorate',
+                'description' => 'Potassium Chlorate chemical supply under fixed statutory duty',
+                'sale_type' => 'Potassium Chlorate',
+                'buyer_type' => 'Registered',
+                'rate' => '18%',
+                'hs_code' => '2829.1910',
+                'uom' => 'KG',
+                'further_tax' => 0.0,
+                'is_supported' => true,
+            ],
+            'SN023' => [
+                'id' => 'SN023',
+                'title' => 'CNG Sales',
+                'description' => 'Compressed Natural Gas dispensing station sales',
+                'sale_type' => 'CNG Sales',
+                'buyer_type' => 'Registered',
+                'rate' => '18%',
+                'hs_code' => '2711.2100',
+                'uom' => 'KG',
+                'further_tax' => 0.0,
+                'is_supported' => true,
+            ],
+            'SN024' => [
+                'id' => 'SN024',
+                'title' => 'Goods listed in SRO 297(I)/2023',
+                'description' => 'Special goods covered under statutory SRO 297(I)/2023',
+                'sale_type' => 'SRO 297(I)/2023 Goods',
+                'buyer_type' => 'Registered',
+                'rate' => '18%',
+                'sro_schedule_no' => 'SRO 297(I)/2023',
+                'sro_item_serial_no' => 'Serial 1',
+                'further_tax' => 0.0,
+                'is_supported' => true,
+            ],
+            'SN025' => [
+                'id' => 'SN025',
+                'title' => 'Drugs sold under 8th Schedule',
+                'description' => 'Pharmaceutical products & medicines chargeable under Eighth Schedule',
+                'sale_type' => 'Drugs under 8th Schedule',
+                'buyer_type' => 'Registered',
+                'rate' => '1%',
+                'hs_code' => '3004.9000',
+                'uom' => 'Numbers, pieces, units',
+                'sro_schedule_no' => 'Eighth Schedule, Table-1',
+                'sro_item_serial_no' => 'Item 1',
+                'further_tax' => 0.0,
+                'is_supported' => true,
             ],
             'SN026' => [
                 'id' => 'SN026',
-                'title' => 'Retailer sales to registered buyers',
-                'description' => 'Retail point-of-sale invoice for registered buyer',
+                'title' => 'Retailers sales to End Consumers (Standard rate)',
+                'description' => 'Retail sales to general walk-in consumers at standard 18% (0 Further Tax)',
                 'sale_type' => 'Goods at Standard Rate (default)',
-                'buyer_type' => 'Registered',
+                'buyer_type' => 'Unregistered',
+                'rate' => '18%',
                 'further_tax' => 0.0,
-                'is_supported' => false,
+                'is_supported' => true,
             ],
             'SN027' => [
                 'id' => 'SN027',
-                'title' => 'Retailer sales to unregistered buyers',
-                'description' => 'Retail point-of-sale invoice for unregistered buyer',
-                'sale_type' => 'Goods at Standard Rate (default)',
+                'title' => 'Retailers sales to End Consumers (3rd Schedule goods)',
+                'description' => 'Retail sales of 3rd Schedule goods to end consumers on retail price',
+                'sale_type' => 'Third Schedule Goods',
                 'buyer_type' => 'Unregistered',
+                'rate' => '18%',
+                'retail_price' => 1500.0,
                 'further_tax' => 0.0,
-                'is_supported' => false,
+                'is_supported' => true,
             ],
             'SN028' => [
                 'id' => 'SN028',
-                'title' => 'Retailer sales with POS integration',
-                'description' => 'General retail POS integration scenario',
-                'sale_type' => 'Goods at Standard Rate (default)',
+                'title' => 'Retailers sales to End Consumers (Reduced rate goods)',
+                'description' => 'Retail sales of reduced rate items to end consumers (0 Further Tax)',
+                'sale_type' => 'Goods at Reduced Rate',
                 'buyer_type' => 'Unregistered',
+                'rate' => '1%',
+                'sro_schedule_no' => 'Eighth Schedule, Table-1',
+                'sro_item_serial_no' => 'Item 1',
                 'further_tax' => 0.0,
-                'is_supported' => false,
+                'is_supported' => true,
             ],
         ];
+    }
+
+    /**
+     * Resolves the official FBR sandbox testing scenarios mapped to a specific
+     * Business Activity (Nature) and Sector according to Section 10 of FBR Official Documentation (Pages 47-51).
+     *
+     * @return array<int, string>
+     */
+    public function scenariosForSectorAndActivity(?string $businessActivity, ?string $sector): array
+    {
+        $activity = strtolower(trim((string) $businessActivity));
+        $sec = strtolower(trim((string) $sector));
+
+        $base = ['SN001', 'SN002', 'SN005', 'SN006', 'SN007', 'SN015', 'SN016', 'SN017', 'SN021', 'SN022', 'SN024'];
+
+        // 1. Retailer Activity (Document Section 10 Rows 76–88)
+        if ($activity === 'retailer') {
+            if (str_contains($sec, 'steel')) {
+                return ['SN003', 'SN004', 'SN011'];
+            }
+            if (str_contains($sec, 'textile')) {
+                return ['SN008', 'SN009', 'SN026', 'SN027', 'SN028'];
+            }
+            if (str_contains($sec, 'telecom')) {
+                return ['SN008', 'SN010', 'SN026', 'SN027', 'SN028'];
+            }
+            if (str_contains($sec, 'petroleum')) {
+                return ['SN008', 'SN012', 'SN026', 'SN027', 'SN028'];
+            }
+            if (str_contains($sec, 'electricity')) {
+                return ['SN008', 'SN013', 'SN026', 'SN027', 'SN028'];
+            }
+            if (str_contains($sec, 'gas')) {
+                return ['SN008', 'SN014', 'SN026', 'SN027', 'SN028'];
+            }
+            if (str_contains($sec, 'service')) {
+                return ['SN008', 'SN018', 'SN019', 'SN026', 'SN027', 'SN028'];
+            }
+            if (str_contains($sec, 'automobile')) {
+                return ['SN008', 'SN020', 'SN026', 'SN027', 'SN028'];
+            }
+            if (str_contains($sec, 'cng')) {
+                return ['SN008', 'SN023', 'SN026', 'SN027', 'SN028'];
+            }
+            if (str_contains($sec, 'pharmaceutical')) {
+                return ['SN008', 'SN025', 'SN026', 'SN027', 'SN028'];
+            }
+            if (str_contains($sec, 'wholesale') || str_contains($sec, 'retail') || str_contains($sec, 'fmcg')) {
+                return ['SN008', 'SN026', 'SN027', 'SN028'];
+            }
+
+            return array_values(array_unique([...$base, 'SN008', 'SN026', 'SN027', 'SN028']));
+        }
+
+        // 2. Service Provider Activity (Document Section 10 Rows 91–103)
+        if ($activity === 'service provider') {
+            if (str_contains($sec, 'steel')) {
+                return ['SN003', 'SN004', 'SN011', 'SN018', 'SN019'];
+            }
+            if (str_contains($sec, 'fmcg')) {
+                return ['SN008', 'SN018', 'SN019'];
+            }
+            if (str_contains($sec, 'textile')) {
+                return ['SN009', 'SN018', 'SN019'];
+            }
+            if (str_contains($sec, 'telecom')) {
+                return ['SN010', 'SN018', 'SN019'];
+            }
+            if (str_contains($sec, 'petroleum')) {
+                return ['SN012', 'SN018', 'SN019'];
+            }
+            if (str_contains($sec, 'electricity')) {
+                return ['SN013', 'SN018', 'SN019'];
+            }
+            if (str_contains($sec, 'gas')) {
+                return ['SN014', 'SN018', 'SN019'];
+            }
+            if (str_contains($sec, 'automobile')) {
+                return ['SN020', 'SN018', 'SN019'];
+            }
+            if (str_contains($sec, 'cng')) {
+                return ['SN023', 'SN018', 'SN019'];
+            }
+            if (str_contains($sec, 'pharmaceutical')) {
+                return ['SN025', 'SN018', 'SN019'];
+            }
+            if (str_contains($sec, 'wholesale') || str_contains($sec, 'retail')) {
+                return ['SN008', 'SN018', 'SN019', 'SN026', 'SN027', 'SN028'];
+            }
+
+            return ['SN010', 'SN018', 'SN019'];
+        }
+
+        // 3. Exporter with specific zero-rated rules
+        if ($activity === 'exporter' && (str_contains($sec, 'other') || $sec === '')) {
+            return ['SN001', 'SN007'];
+        }
+
+        // 4. Sector-based mapping for Manufacturer, Importer, Distributor, Wholesaler, Exporter, Other
+        if (str_contains($sec, 'steel')) {
+            return array_values(array_unique([...$base, 'SN003', 'SN004', 'SN011']));
+        }
+
+        if (str_contains($sec, 'fmcg')) {
+            return array_values(array_unique([...$base, 'SN008']));
+        }
+
+        if (str_contains($sec, 'textile')) {
+            return array_values(array_unique([...$base, 'SN009']));
+        }
+
+        if (str_contains($sec, 'petroleum')) {
+            return array_values(array_unique([...$base, 'SN012']));
+        }
+
+        if (str_contains($sec, 'telecom')) {
+            return array_values(array_unique([...$base, 'SN010']));
+        }
+
+        if (str_contains($sec, 'gas') || str_contains($sec, 'cng')) {
+            return array_values(array_unique([...$base, 'SN014', 'SN023']));
+        }
+
+        if (str_contains($sec, 'electricity')) {
+            return array_values(array_unique([...$base, 'SN013']));
+        }
+
+        if (str_contains($sec, 'service')) {
+            return array_values(array_unique([...$base, 'SN018', 'SN019']));
+        }
+
+        if (str_contains($sec, 'automobile')) {
+            return array_values(array_unique([...$base, 'SN020']));
+        }
+
+        if (str_contains($sec, 'pharmaceutical')) {
+            return array_values(array_unique([...$base, 'SN025']));
+        }
+
+        if (str_contains($sec, 'wholesale') || str_contains($sec, 'retail')) {
+            return array_values(array_unique([...$base, 'SN008', 'SN026', 'SN027', 'SN028']));
+        }
+
+        return $base;
     }
 
     /**
@@ -140,19 +509,31 @@ class FbrScenarioRegistry
     }
 
     /**
-     * Resolves the explicit scenarios assigned to the company.
-     * Per safety rules: an empty assignment list does NOT default to SN001/SN002;
-     * it returns an empty array indicating configuration is incomplete.
+     * Returns the array of allowed sandbox scenario IDs for the company.
+     * If the company has custom configured scenarios, returns those;
+     * otherwise dynamically resolves them from the company's business activity and sector.
+     *
+     * @return array<int, string>
+     */
+    public function allowedCodesForCompany(Company $company): array
+    {
+        $allowed = $company->allowed_sandbox_scenarios ?? [];
+        if (is_array($allowed) && ! empty($allowed)) {
+            return array_values($allowed);
+        }
+
+        return $this->scenariosForSectorAndActivity($company->business_activity, $company->sector);
+    }
+
+    /**
+     * Resolves scenarios for the company. If no custom scenarios are assigned,
+     * it automatically determines the official FBR scenarios based on Company Business Nature & Sector.
      *
      * @return array<int, array{id: string, title: string, is_supported: bool}>
      */
     public function forCompany(Company $company): array
     {
-        $allowed = $company->allowed_sandbox_scenarios ?? [];
-        if (! is_array($allowed) || empty($allowed)) {
-            return [];
-        }
-
+        $allowed = $this->allowedCodesForCompany($company);
         $catalogue = $this->definitions();
         $resolved = [];
         foreach ($allowed as $id) {
@@ -174,16 +555,38 @@ class FbrScenarioRegistry
      */
     public function buildCertificationPayload(Company $company, string $scenarioId): array
     {
-        if (! $this->isSupported($scenarioId)) {
+        $definitions = $this->definitions();
+        if (! isset($definitions[$scenarioId])) {
             throw ValidationException::withMessages([
-                'scenario_id' => 'Scenario '.$scenarioId.' is not supported in this release. Official tax formulas and SRO rules are pending.',
+                'scenario_id' => 'Scenario '.$scenarioId.' is not recognized in FBR catalogue.',
             ]);
         }
 
-        $definition = $this->definitions()[$scenarioId];
-        $furtherTax = (float) $definition['further_tax'];
-        $taxApplicable = 180.0;
-        $totalValues = 1000.0 + $taxApplicable + $furtherTax;
+        $def = $definitions[$scenarioId];
+        $quantity = 1.0;
+        $unitPrice = 1000.0;
+        $ratePercent = (float) str_replace('%', '', $def['rate'] ?? '18%');
+        $retailPrice = (float) ($def['retail_price'] ?? 0.0);
+        $furtherTax = (float) ($def['further_tax'] ?? 0.0);
+        $extraTax = (float) ($def['extra_tax'] ?? 0.0);
+        $fedPayable = (float) ($def['fed_payable'] ?? 0.0);
+        $sroScheduleNo = $def['sro_schedule_no'] ?? '';
+        $sroItemSerialNo = $def['sro_item_serial_no'] ?? '';
+        $saleType = $def['sale_type'];
+
+        // Tax base calculation according to Sales Tax Act Section 3(2)(a)
+        if ($retailPrice > 0) {
+            $taxBase = $quantity * $retailPrice;
+            $salesTaxApplicable = round($taxBase * ($ratePercent / 100), 2);
+        } else {
+            $taxBase = $quantity * $unitPrice;
+            $salesTaxApplicable = round($taxBase * ($ratePercent / 100), 2);
+        }
+
+        $totalValues = $unitPrice + $salesTaxApplicable + $furtherTax + $extraTax + $fedPayable;
+
+        $buyerNTN = $def['buyer_type'] === 'Registered' ? '1000000000000' : '';
+        $buyerName = $def['buyer_type'] === 'Registered' ? 'FERTILIZER MANUFAC IRS NEW' : 'End Consumer / Unregistered Buyer';
 
         return [
             'invoiceType' => 'Sale Invoice',
@@ -192,31 +595,31 @@ class FbrScenarioRegistry
             'sellerBusinessName' => $company->name,
             'sellerProvince' => $company->province,
             'sellerAddress' => $company->address,
-            'buyerNTNCNIC' => $definition['buyer_type'] === 'Registered' ? '1000000000000' : '',
-            'buyerBusinessName' => 'FERTILIZER MANUFAC IRS NEW',
+            'buyerNTNCNIC' => $buyerNTN,
+            'buyerBusinessName' => $buyerName,
             'buyerProvince' => $company->province,
             'buyerAddress' => $company->address,
-            'buyerRegistrationType' => $definition['buyer_type'],
+            'buyerRegistrationType' => $def['buyer_type'],
             'invoiceRefNo' => '',
             'scenarioId' => $scenarioId,
             'items' => [[
-                'hsCode' => '0101.2100',
-                'productDescription' => 'Sandbox certification sample item',
-                'rate' => '18%',
-                'uoM' => 'Numbers, pieces, units',
-                'quantity' => 1,
+                'hsCode' => $def['hs_code'] ?? '0101.2100',
+                'productDescription' => 'Sandbox certification sample item - '.$def['title'],
+                'rate' => $def['rate'],
+                'uoM' => $def['uom'] ?? 'Numbers, pieces, units',
+                'quantity' => $quantity,
                 'totalValues' => $totalValues,
-                'valueSalesExcludingST' => 1000,
-                'fixedNotifiedValueOrRetailPrice' => 0,
-                'salesTaxApplicable' => $taxApplicable,
-                'salesTaxWithheldAtSource' => 0,
-                'extraTax' => 0,
+                'valueSalesExcludingST' => $unitPrice,
+                'fixedNotifiedValueOrRetailPrice' => $retailPrice,
+                'salesTaxApplicable' => $salesTaxApplicable,
+                'salesTaxWithheldAtSource' => 0.0,
+                'extraTax' => $extraTax,
                 'furtherTax' => $furtherTax,
-                'sroScheduleNo' => '',
-                'fedPayable' => 0,
-                'discount' => 0,
-                'saleType' => $definition['sale_type'],
-                'sroItemSerialNo' => '',
+                'sroScheduleNo' => $sroScheduleNo,
+                'fedPayable' => $fedPayable,
+                'discount' => 0.0,
+                'saleType' => $saleType,
+                'sroItemSerialNo' => $sroItemSerialNo,
             ]],
         ];
     }

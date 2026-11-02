@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Auth;
 
+use App\Services\FbrScenarioRegistry;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -24,7 +25,7 @@ class CompanyResource extends JsonResource
             'fbr_environment' => $this->fbr_environment,
             'business_activity' => $this->business_activity,
             'sector' => $this->sector,
-            'allowed_sandbox_scenarios' => $this->allowed_sandbox_scenarios ?? [],
+            'allowed_sandbox_scenarios' => app(FbrScenarioRegistry::class)->allowedCodesForCompany($this->resource),
             'role' => $this->pivot->role,
         ];
     }

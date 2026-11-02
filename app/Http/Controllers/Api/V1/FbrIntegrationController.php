@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Enums\FbrIntegrationStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Services\FbrErrorCatalog;
 use App\Services\FbrScenarioRegistry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,6 +19,7 @@ class FbrIntegrationController extends Controller
 {
     public function __construct(
         private FbrScenarioRegistry $registry,
+        private FbrErrorCatalog $errors,
     ) {}
 
     private function stateStore()
@@ -86,6 +88,8 @@ class FbrIntegrationController extends Controller
         return response()->json([
             'verified' => $verifiedCurrentProfile,
             'verification' => $verifiedCurrentProfile ? $verified : null,
+            'business_activity' => $company->business_activity,
+            'sector' => $company->sector,
             'scenarios' => $assignedScenarios,
             'results' => $certification['results'] ?? [],
             'all_passed' => $verifiedCurrentProfile && $certifiedCurrentProfile,
@@ -236,13 +240,18 @@ class FbrIntegrationController extends Controller
                         $passed = false;
                     }
                 }
+                $errCode = $passed ? null : ($validation['errorCode'] ?? ($lineResults[0]['errorCode'] ?? null));
+                $errEntry = $errCode !== null ? $this->errors->entry((string) $errCode, $company->sector, $company->business_activity) : null;
                 $resultsById[$scenarioId] = [
                     'scenario_id' => $scenarioId,
                     'title' => $scenario['title'],
                     'passed' => $passed,
                     'fbr_invoice_no' => $body['invoiceNumber'] ?? null,
-                    'error_code' => $passed ? null : ($validation['errorCode'] ?? ($lineResults[0]['errorCode'] ?? null)),
+                    'error_code' => $errCode,
                     'error' => $passed ? null : ($validation['error'] ?? ($lineResults[0]['error'] ?? ('FBR sandbox rejected the scenario (HTTP '.$response->status().').'))),
+                    'category' => $errEntry['category'] ?? null,
+                    'guidance' => $errEntry['guidance'] ?? null,
+                    'solution' => $errEntry['solution'] ?? null,
                     'raw_response' => $body,
                 ];
             } catch (Throwable $exception) {

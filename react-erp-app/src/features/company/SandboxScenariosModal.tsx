@@ -47,7 +47,23 @@ export function SandboxScenariosModal({ scenarios, results, checking, allPassed,
                         <p className="muted">Official fiscal formulas and SRO rules are pending for this scenario.</p>
                     )}
                     {result?.passed && <p>FBR code: {result.fbr_invoice_no || "Accepted"}</p>}
-                    {result && !result.passed && <><p><strong>Error {result.error_code || "unknown"}:</strong> {result.error || "Scenario rejected."}</p>{result.error_code !== "UNSUPPORTED" && <details><summary>Raw response and corrective advice</summary><pre>{JSON.stringify(result.raw_response, null, 2)}</pre><p>Verify the exact FBR error, seller data, token permissions and official item references before retrying.</p></details>}</>}
+                    {result && !result.passed && (
+                        <div className="fbr-error-resolution-card" style={{ marginTop: "10px" }}>
+                            <div className="fbr-error-resolution-header">
+                                <span className="fbr-error-badge">Error {result.error_code || "Unknown"}</span>
+                                {result.category && <span className="fbr-error-category">{result.category}</span>}
+                            </div>
+                            <p className="fbr-error-message">{result.error || "Scenario rejected by FBR sandbox."}</p>
+                            {result.guidance && <p className="fbr-error-guidance">💡 {result.guidance}</p>}
+                            {result.solution && <div className="fbr-error-solution"><strong>Fix:</strong> {result.solution}</div>}
+                            {result.error_code !== "UNSUPPORTED" && (
+                                <details style={{ marginTop: "8px" }}>
+                                    <summary>Raw gateway response</summary>
+                                    <pre>{JSON.stringify(result.raw_response, null, 2)}</pre>
+                                </details>
+                            )}
+                        </div>
+                    )}
                 </section>;
             })
         )}

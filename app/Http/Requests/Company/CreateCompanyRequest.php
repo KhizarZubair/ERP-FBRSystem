@@ -29,6 +29,8 @@ class CreateCompanyRequest extends FormRequest
             'address' => ['required', 'string', 'max:2000'],
             'email' => ['required', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+(). -]+$/'],
+            'business_activity' => ['sometimes', 'nullable', Rule::in(config('fbr.business_activities'))],
+            'sector' => ['sometimes', 'nullable', Rule::in(config('fbr.sectors'))],
         ];
     }
 }

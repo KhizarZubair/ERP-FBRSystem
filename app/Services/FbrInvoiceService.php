@@ -39,13 +39,14 @@ class FbrInvoiceService
         if (! preg_match('/^(?:[0-9]{7,8}|[0-9]{13})$/', (string) $company->ntn_cnic)) {
             $blockers[] = 'Seller NTN must contain 7 or 8 digits, or a CNIC must contain 13 digits.';
         }
-        if ($company->fbr_environment->value === 'sandbox' && empty($company->allowed_sandbox_scenarios)) {
-            $blockers[] = 'Select at least one supported sandbox scenario.';
+        $allowedScenarios = app(FbrScenarioRegistry::class)->allowedCodesForCompany($company);
+        if ($company->fbr_environment->value === 'sandbox' && empty($allowedScenarios)) {
+            $blockers[] = 'Select a sector or at least one supported sandbox scenario.';
         }
         if ($this->environments($company) === []) {
             $blockers[] = 'Configure the '.$company->fbr_environment->value.' FBR token.';
         }
-        $scenarios = array_intersect_key(config('fbr.supported_scenarios'), array_flip($company->allowed_sandbox_scenarios ?? []));
+        $scenarios = array_intersect_key(config('fbr.supported_scenarios'), array_flip($allowedScenarios));
 
         return ['ready' => $blockers === [], 'blockers' => $blockers, 'scenarios' => $scenarios];
     }
@@ -68,7 +69,8 @@ class FbrInvoiceService
             if (! preg_match('/^SN0(?:0[1-9]|1[0-9]|2[0-8])$/', $scenario ?? '')) {
                 throw ValidationException::withMessages(['scenario_id' => 'Select an applicable sandbox scenario SN001–SN028.']);
             }
-            if (! in_array($scenario, $invoice->company->allowed_sandbox_scenarios ?? [], true)) {
+            $allowedScenarios = app(FbrScenarioRegistry::class)->allowedCodesForCompany($invoice->company);
+            if (! in_array($scenario, $allowedScenarios, true)) {
                 throw ValidationException::withMessages(['scenario_id' => 'This scenario is not enabled for the seller company.']);
             }
             $scenarioRules = config('fbr.supported_scenarios.'.$scenario);
@@ -293,13 +295,38 @@ class FbrInvoiceService
 
     public function summary(FbrSubmission $record): array
     {
-        return ['id' => $record->id, 'environment' => $record->environment->value, 'operation' => $record->operation->value,
-            'status' => $record->status->value, 'reconciliation_notes' => $record->reconciliation_notes, 'http_status' => $record->http_status,
-            'error_code' => $record->business_error_code, 'error' => $record->error_message,
-            'guidance' => $this->errors->guidance($record->business_error_code),
-            'fbr_invoice_number' => $record->fbr_invoice_number, 'created_at' => $record->created_at->toIso8601String(),
-            'lines' => $record->items->map(fn ($line) => ['line_number' => $line->line_number, 'status' => $line->status,
-                'error_code' => $line->error_code, 'error' => $line->error_message,
-                'guidance' => $this->errors->guidance($line->error_code)])->all()];
+        $company = $record->company;
+        $sector = $company?->sector;
+        $activity = $company?->business_activity;
+        $headerEntry = $this->errors->entry($record->business_error_code, $sector, $activity);
+
+        return [
+            'id' => $record->id,
+            'environment' => $record->environment->value,
+            'operation' => $record->operation->value,
+            'status' => $record->status->value,
+            'reconciliation_notes' => $record->reconciliation_notes,
+            'http_status' => $record->http_status,
+            'error_code' => $record->business_error_code,
+            'error' => $record->error_message,
+            'category' => $this->errors->category($record->business_error_code),
+            'guidance' => $this->errors->guidance($record->business_error_code, $sector, $activity),
+            'solution' => $headerEntry['solution'] ?? null,
+            'fbr_invoice_number' => $record->fbr_invoice_number,
+            'created_at' => $record->created_at->toIso8601String(),
+            'lines' => $record->items->map(function ($line) use ($sector, $activity) {
+                $lineEntry = $this->errors->entry($line->error_code, $sector, $activity);
+
+                return [
+                    'line_number' => $line->line_number,
+                    'status' => $line->status,
+                    'error_code' => $line->error_code,
+                    'error' => $line->error_message,
+                    'category' => $this->errors->category($line->error_code),
+                    'guidance' => $this->errors->guidance($line->error_code, $sector, $activity),
+                    'solution' => $lineEntry['solution'] ?? null,
+                ];
+            })->all(),
+        ];
     }
 }

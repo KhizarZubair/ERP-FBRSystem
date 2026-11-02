@@ -13,6 +13,9 @@ export type FbrScenarioResult = {
     fbr_invoice_no: string | null;
     error_code: string | number | null;
     error: string | null;
+    category?: string | null;
+    guidance?: string | null;
+    solution?: string | null;
     raw_response: unknown;
 };
 
@@ -27,6 +30,8 @@ export type FbrVerification = {
 export type FbrIntegrationStatus = {
     verified: boolean;
     verification: FbrVerification | null;
+    business_activity?: string | null;
+    sector?: string | null;
     scenarios: FbrAssignedScenario[];
     results: FbrScenarioResult[];
     all_passed: boolean;

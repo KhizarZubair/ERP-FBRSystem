@@ -179,6 +179,22 @@ export function FbrIntegrationPanel() {
             <div className={verified ? "" : "fbr-locked-wrap"}>
                 {!verified && <div className="fbr-lock-overlay" role="status"><span aria-hidden="true">🔒</span><strong>FBR credentials locked</strong><span>Verify your company first to unlock sandbox testing.</span></div>}
                 <Card title="Phase 2 · FBR Credentials & Sandbox Testing" className={!verified ? "fbr-locked-card" : ""}>
+                    {verified && (
+                        <div style={{ marginBottom: "1rem", padding: "0.75rem 1rem", background: "var(--color-surface-subtle, #f8fafc)", borderRadius: "8px", border: "1px solid var(--border-color, #e2e8f0)" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
+                                <div>
+                                    <strong style={{ fontSize: "0.95rem" }}>FBR Sector Testing Suite:</strong>
+                                    <span style={{ marginLeft: "0.5rem" }}>
+                                        {status?.sector || "All Other Sectors"} · {status?.business_activity || "General"}
+                                    </span>
+                                </div>
+                                <Badge tone="neutral">{assignedScenarios.length} Scenarios Auto-Mapped</Badge>
+                            </div>
+                            <p style={{ margin: "0.35rem 0 0 0", fontSize: "0.825rem", color: "var(--text-muted, #64748b)" }}>
+                                Official test scenarios automatically mapped from your Business Nature & Sector per FBR Documentation Section 10.
+                            </p>
+                        </div>
+                    )}
                     {!hasAssignedScenarios && verified && (
                         <Notice tone="warning">No assigned sandbox scenarios found. Configure your company's assigned scenarios in Company Details before running certification.</Notice>
                     )}

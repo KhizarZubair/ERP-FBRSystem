@@ -51,11 +51,23 @@ export function FbrInvoicePrint({ invoice }: { invoice: InvoiceRecord }) {
                     <section className="fbr-print-page" aria-label="Printable FBR invoice">
                         <header className="fbr-print-header">
                             <div>
+                                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+                                    <div style={{ width: "38px", height: "38px", borderRadius: "6px", background: "#065f46", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: "13px", letterSpacing: "1px" }}>
+                                        FBR
+                                    </div>
+                                    <div>
+                                        <div style={{ fontSize: "14px", fontWeight: 700, color: "#065f46", letterSpacing: "0.5px" }}>FBR DIGITAL INVOICING SYSTEM</div>
+                                        <div style={{ fontSize: "10px", color: "#6b7280" }}>Government of Pakistan · Sales Tax Act 1990</div>
+                                    </div>
+                                </div>
                                 <h1>Digital Invoice</h1>
                                 <p>FBR invoice number: <strong>{invoice.fbr_invoice_number}</strong></p>
                                 <p>Local invoice: {invoice.number} · Date: {invoice.invoice_date}</p>
                             </div>
-                            <img src={qrDataUrl} alt="FBR invoice QR code" width={96} height={96} />
+                            <div style={{ textAlign: "center" }}>
+                                <img src={qrDataUrl} alt="FBR invoice QR code" width={96} height={96} style={{ border: "1px solid #e5e7eb", borderRadius: "4px" }} />
+                                <div style={{ fontSize: "9px", color: "#6b7280", marginTop: "2px" }}>QR 2.0 (1" × 1")</div>
+                            </div>
                         </header>
                         <div className="fbr-print-parties">
                             <section><h2>Seller</h2><p>{invoice.seller_business_name}</p><p>{invoice.seller_ntn_cnic}</p><p>{invoice.seller_address}, {invoice.seller_province}</p></section>

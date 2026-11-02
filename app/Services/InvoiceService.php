@@ -143,15 +143,26 @@ class InvoiceService
                 throw ValidationException::withMessages(["lines.$index.item_id" => 'Select an active item from this company.']);
             }
             $snapshot = $old && $old->item_id === $item->id ? $old : $item;
+            $lineInput = [
+                ...$input,
+                'fixed_notified_value_or_retail_price' => $input['fixed_notified_value_or_retail_price'] ?? $snapshot->fixed_notified_value_or_retail_price ?? '0',
+                'sale_type' => $input['sale_type'] ?? $snapshot->sale_type ?? '',
+            ];
+            $context = [
+                'business_activity' => $company->business_activity,
+                'sector' => $company->sector,
+                'buyer_registration_type' => $buyer->registration_type,
+                'scenario_id' => $data['scenario_id'] ?? null,
+            ];
             $lines[] = [
                 'company_id' => $company->id, 'item_id' => $item->id, 'line_number' => $index + 1,
                 'sku' => $snapshot->sku, 'product_description' => $old && $old->item_id === $item->id ? $old->product_description : $item->description,
                 'hs_code' => $snapshot->hs_code, 'unit_of_measurement' => $snapshot->unit_of_measurement,
                 'sale_type' => $snapshot->sale_type, 'tax_rate_label' => $input['tax_rate_label'] ?? $input['tax_rate_percent'].'%',
-                'fixed_notified_value_or_retail_price' => $input['fixed_notified_value_or_retail_price'] ?? $snapshot->fixed_notified_value_or_retail_price ?? '0',
+                'fixed_notified_value_or_retail_price' => $lineInput['fixed_notified_value_or_retail_price'],
                 'sro_schedule_no' => $input['sro_schedule_no'] ?? $snapshot->sro_schedule_no,
                 'sro_item_serial_no' => $input['sro_item_serial_no'] ?? $snapshot->sro_item_serial_no,
-                ...$this->calculator->line($input, $index),
+                ...$this->calculator->line($lineInput, $index, $context),
             ];
         }
 
