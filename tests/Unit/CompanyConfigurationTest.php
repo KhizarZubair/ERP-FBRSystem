@@ -139,4 +139,73 @@ class CompanyConfigurationTest extends TestCase
         $this->assertNotContains('Add business activity in Company Details.', $updatedBlockers);
         $this->assertNotContains('Add sector in Company Details.', $updatedBlockers);
     }
+
+    public function test_company_validation_accepts_either_ntn_or_cnic_exclusively(): void
+    {
+        $rules = (new UpdateCompanyRequest)->rules();
+
+        // 1. Only NTN provided (7 or 8 digits)
+        $v1 = Validator::make([
+            'name' => 'NTN Only Co',
+            'seller_ntn' => '1234567',
+            'seller_cnic' => null,
+            'province' => 'Sindh',
+            'address' => 'Karachi',
+        ], $rules);
+        $this->assertFalse($v1->fails(), 'Company with only NTN must pass validation');
+
+        // 2. Only CNIC provided (13 digits)
+        $v2 = Validator::make([
+            'name' => 'CNIC Only Sole Proprietor',
+            'seller_ntn' => null,
+            'seller_cnic' => '3520112345671',
+            'province' => 'Punjab',
+            'address' => 'Lahore',
+        ], $rules);
+        $this->assertFalse($v2->fails(), 'Company with only CNIC must pass validation');
+
+        // 3. Both provided
+        $v3 = Validator::make([
+            'name' => 'Both Co',
+            'seller_ntn' => '1234567',
+            'seller_cnic' => '3520112345671',
+            'province' => 'Punjab',
+            'address' => 'Lahore',
+        ], $rules);
+        $this->assertFalse($v3->fails(), 'Company with both NTN and CNIC must pass validation');
+
+        // 4. Neither provided -> must fail
+        $v4 = Validator::make([
+            'name' => 'No Identity Co',
+            'seller_ntn' => null,
+            'seller_cnic' => null,
+            'province' => 'Punjab',
+            'address' => 'Lahore',
+        ], $rules);
+        $this->assertTrue($v4->fails(), 'Company with neither NTN nor CNIC must fail');
+        $this->assertTrue($v4->errors()->has('seller_ntn'));
+        $this->assertTrue($v4->errors()->has('seller_cnic'));
+
+        // 5. Invalid NTN (less than 7 digits)
+        $v5 = Validator::make([
+            'name' => 'Bad NTN Co',
+            'seller_ntn' => '12345',
+            'seller_cnic' => null,
+            'province' => 'Punjab',
+            'address' => 'Lahore',
+        ], $rules);
+        $this->assertTrue($v5->fails());
+        $this->assertTrue($v5->errors()->has('seller_ntn'));
+
+        // 6. Invalid CNIC (not 13 digits)
+        $v6 = Validator::make([
+            'name' => 'Bad CNIC Co',
+            'seller_ntn' => null,
+            'seller_cnic' => '35201123',
+            'province' => 'Punjab',
+            'address' => 'Lahore',
+        ], $rules);
+        $this->assertTrue($v6->fails());
+        $this->assertTrue($v6->errors()->has('seller_cnic'));
+    }
 }

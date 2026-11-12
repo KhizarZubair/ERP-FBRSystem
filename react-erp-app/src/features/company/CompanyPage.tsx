@@ -37,8 +37,26 @@ function FirstCompanySetup({ onCreated }: { onCreated: () => Promise<void> }) {
             setBusy(true); setError(""); setFieldErrors({});
             const form = new FormData(event.currentTarget);
             const value = (key: string) => String(form.get(key) ?? "").trim();
+            const sellerNtn = value("seller_ntn");
+            const sellerCnic = value("seller_cnic");
+            if (!sellerNtn && !sellerCnic) {
+                setError("Please provide either Seller NTN (7 or 8 digits) or Seller CNIC (13 digits).");
+                setFieldErrors({
+                    seller_ntn: ["Either NTN or CNIC is required."],
+                    seller_cnic: ["Either CNIC or NTN is required."],
+                });
+                return;
+            }
             try {
-                await companyApi.create({ name: value("name"), seller_ntn: value("seller_ntn"), seller_cnic: value("seller_cnic"), province: value("province"), address: value("address"), email: value("email"), phone: value("phone") });
+                await companyApi.create({
+                    name: value("name"),
+                    seller_ntn: sellerNtn || undefined,
+                    seller_cnic: sellerCnic || undefined,
+                    province: value("province"),
+                    address: value("address"),
+                    email: value("email"),
+                    phone: value("phone"),
+                });
                 await onCreated();
             } catch (failure) {
                 setError(failure instanceof Error ? failure.message : "Could not create company profile.");
@@ -49,8 +67,8 @@ function FirstCompanySetup({ onCreated }: { onCreated: () => Promise<void> }) {
                 {error && <Notice tone="warning">{error}</Notice>}
                 <div className="form-grid">
                     <Input label="Registered business name" name="name" required maxLength={255} error={fieldErrors.name?.[0]} />
-                    <Input label="Seller NTN *" name="seller_ntn" placeholder="e.g. 1234567" required inputMode="numeric" pattern="[0-9]{7,8}" minLength={7} maxLength={8} error={fieldErrors.seller_ntn?.[0]} />
-                    <Input label="Seller CNIC *" name="seller_cnic" placeholder="13 digits without dashes (e.g. 3520112345671)" required inputMode="numeric" pattern="[0-9]{13}" minLength={13} maxLength={13} error={fieldErrors.seller_cnic?.[0]} />
+                    <Input label="Seller NTN" name="seller_ntn" placeholder="e.g. 1234567" inputMode="numeric" pattern="[0-9]{7,8}" minLength={7} maxLength={8} error={fieldErrors.seller_ntn?.[0]} hint="7 or 8 digits (Required if CNIC is not provided)" />
+                    <Input label="Seller CNIC" name="seller_cnic" placeholder="13 digits without dashes (e.g. 3520112345671)" inputMode="numeric" pattern="[0-9]{13}" minLength={13} maxLength={13} error={fieldErrors.seller_cnic?.[0]} hint="13 digits without dashes (Required if NTN is not provided)" />
                     <Select label="Province" name="province" required options={[{ value: "", label: "Select province" }, ...provinces]} error={fieldErrors.province?.[0]} />
                     <Input label="Company email" name="email" type="email" required maxLength={255} error={fieldErrors.email?.[0]} />
                     <Input label="Phone" name="phone" maxLength={30} error={fieldErrors.phone?.[0]} />

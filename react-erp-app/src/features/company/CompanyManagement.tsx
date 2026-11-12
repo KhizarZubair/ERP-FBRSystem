@@ -49,12 +49,12 @@ export function CompanyManagement({ companyId, canEdit }: { companyId: number; c
         </div>)}</div></Card>
         <Card title="Add another company"><div className="form-grid form-grid--three">
             <Input label="Registered company name" required value={company.name} onChange={event => setCompany(current => ({ ...current, name: event.target.value }))} />
-            <Input label="Seller NTN *" required placeholder="e.g. 1234567" inputMode="numeric" pattern="[0-9]{7,8}" minLength={7} maxLength={8} value={company.seller_ntn} onChange={event => setCompany(current => ({ ...current, seller_ntn: event.target.value }))} />
-            <Input label="Seller CNIC *" required placeholder="13 digits without dashes (e.g. 3520112345671)" inputMode="numeric" pattern="[0-9]{13}" minLength={13} maxLength={13} value={company.seller_cnic} onChange={event => setCompany(current => ({ ...current, seller_cnic: event.target.value }))} />
+            <Input label="Seller NTN" placeholder="e.g. 1234567" inputMode="numeric" pattern="[0-9]{7,8}" minLength={7} maxLength={8} value={company.seller_ntn} onChange={event => setCompany(current => ({ ...current, seller_ntn: event.target.value }))} hint="7 or 8 digits (Required if CNIC not provided)" />
+            <Input label="Seller CNIC" placeholder="13 digits without dashes (e.g. 3520112345671)" inputMode="numeric" pattern="[0-9]{13}" minLength={13} maxLength={13} value={company.seller_cnic} onChange={event => setCompany(current => ({ ...current, seller_cnic: event.target.value }))} hint="13 digits without dashes (Required if NTN not provided)" />
             <Select label="Province" required value={company.province} options={[{ value: "", label: "Select province" }, ...["Punjab", "Sindh", "Khyber Pakhtunkhwa", "Balochistan", "Islamabad Capital Territory", "Gilgit-Baltistan", "Azad Jammu and Kashmir"].map(value => ({ value, label: value }))]} onChange={event => setCompany(current => ({ ...current, province: event.target.value }))} />
             <Input label="Registered address" required value={company.address} onChange={event => setCompany(current => ({ ...current, address: event.target.value }))} />
             <Input label="Company email" required type="email" value={company.email} onChange={event => setCompany(current => ({ ...current, email: event.target.value }))} />
             <Input label="Phone" value={company.phone} onChange={event => setCompany(current => ({ ...current, phone: event.target.value }))} />
-        </div><Button disabled={busy || !company.name || !company.seller_ntn || !company.seller_cnic || !company.province || !company.address || !company.email} onClick={() => { void createCompany(); }}>Create company</Button></Card>
+        </div><Button disabled={busy || !company.name || (!company.seller_ntn && !company.seller_cnic) || !company.province || !company.address || !company.email} onClick={() => { void createCompany(); }}>Create company</Button></Card>
     </>;
 }

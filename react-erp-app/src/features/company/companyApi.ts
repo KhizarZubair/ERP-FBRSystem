@@ -1,6 +1,6 @@
 import { api } from "../../lib/api";
 export type CompanyDetails = {
- id:number; name:string; ntn_cnic:string|null; seller_cnic:string|null; province:string|null; address:string|null;
+ id:number; name:string; ntn_cnic:string|null; seller_ntn?:string|null; seller_cnic:string|null; province:string|null; address:string|null;
  contact_person:string|null; email:string|null; phone:string|null;
  invoice_series:string; currency:string; fbr_environment:"sandbox"|"production"; can_edit:boolean;
  business_activity:string|null; sector:string|null; allowed_sandbox_scenarios:string[];
@@ -20,15 +20,17 @@ export const fbrIntegrationApi = {
 };
 export const companyApi={
  get:(id:number)=>api<{data:CompanyDetails}>("/api/v1/companies/"+id),
- update:(id:number,data:Partial<CompanyDraft> & {seller_ntn:string;seller_cnic:string})=>api<{data:CompanyDetails}>("/api/v1/companies/"+id,{method:"PUT",body:JSON.stringify(data)}),
- create:(data:{name:string;seller_ntn:string;seller_cnic:string;province:string;address:string;email:string;phone:string})=>api<{data:CompanyDetails}>("/api/v1/companies",{method:"POST",body:JSON.stringify(data)}),
+ update:(id:number,data:Partial<CompanyDraft> & {seller_ntn?:string|null;seller_cnic?:string|null})=>api<{data:CompanyDetails}>("/api/v1/companies/"+id,{method:"PUT",body:JSON.stringify(data)}),
+ create:(data:{name:string;seller_ntn?:string|null;seller_cnic?:string|null;province:string;address:string;email:string;phone:string})=>api<{data:CompanyDetails}>("/api/v1/companies",{method:"POST",body:JSON.stringify(data)}),
  members:(id:number)=>api<{data:CompanyMember[]}>(`/api/v1/companies/${id}/members`),
  addMember:(id:number,email:string,role:"owner"|"member")=>api<{data:CompanyMember}>(`/api/v1/companies/${id}/members`,{method:"POST",body:JSON.stringify({email,role})}),
  updateMember:(id:number,user:number,data:{role:"owner"|"member";is_active:boolean})=>api<{data:CompanyMember}>(`/api/v1/companies/${id}/members/${user}`,{method:"PUT",body:JSON.stringify(data)}),
  removeMember:(id:number,user:number)=>api<{message:string}>(`/api/v1/companies/${id}/members/${user}`,{method:"DELETE"}),
 };
 export function companyDraft(company:CompanyDetails):CompanyDraft {
- return {name:company.name,ntn_cnic:company.ntn_cnic||"",seller_cnic:company.seller_cnic||"",province:company.province||"",address:company.address||"",
+ const ntn = (company.seller_ntn ?? (company.ntn_cnic && company.ntn_cnic.length <= 8 ? company.ntn_cnic : "")) || "";
+ const cnic = (company.seller_cnic ?? (company.ntn_cnic && company.ntn_cnic.length === 13 ? company.ntn_cnic : "")) || "";
+ return {name:company.name,ntn_cnic:ntn,seller_cnic:cnic,province:company.province||"",address:company.address||"",
  contact_person:company.contact_person||"",email:company.email||"",phone:company.phone||"",
  invoice_series:company.invoice_series,currency:company.currency,fbr_environment:company.fbr_environment,business_activity:company.business_activity||"",
  sector:company.sector||"",allowed_sandbox_scenarios:[...company.allowed_sandbox_scenarios],sandbox_token:"",production_token:""};

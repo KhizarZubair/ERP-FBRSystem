@@ -16,8 +16,11 @@ class CompanyDetailsResource extends JsonResource
             $credentials[$environment] = ['configured' => $integration && $integration->getRawOriginal('token') !== null, 'status' => $integration?->status->value ?? 'not_configured'];
         }
 
+        $sellerNtn = (strlen((string) $this->ntn_cnic) >= 7 && strlen((string) $this->ntn_cnic) <= 8) ? $this->ntn_cnic : null;
+        $sellerCnic = $this->technical_contact ?: (strlen((string) $this->ntn_cnic) === 13 ? $this->ntn_cnic : null);
+
         return [
-            'id' => $this->id, 'name' => $this->name, 'ntn_cnic' => $this->ntn_cnic, 'seller_cnic' => $this->technical_contact, 'province' => $this->province, 'address' => $this->address,
+            'id' => $this->id, 'name' => $this->name, 'ntn_cnic' => $this->ntn_cnic, 'seller_ntn' => $sellerNtn, 'seller_cnic' => $sellerCnic, 'province' => $this->province, 'address' => $this->address,
             'contact_person' => $this->contact_person, 'email' => $this->email, 'phone' => $this->phone,
             'invoice_series' => $this->invoice_series, 'currency' => $this->currency, 'fbr_environment' => $this->fbr_environment->value,
             'business_activity' => $this->business_activity, 'sector' => $this->sector,

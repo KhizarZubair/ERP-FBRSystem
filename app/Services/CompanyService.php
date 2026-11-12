@@ -44,10 +44,13 @@ class CompanyService
             'Single-company installation active. Update the existing Company Profile instead.');
 
         return DB::transaction(function () use ($owner, $data): Company {
+            $sellerNtn = filled($data['seller_ntn'] ?? null) ? trim((string) $data['seller_ntn']) : null;
+            $sellerCnic = filled($data['seller_cnic'] ?? null) ? trim((string) $data['seller_cnic']) : null;
+
             $company = Company::create([
                 ...$data,
-                'ntn_cnic' => $data['seller_ntn'],
-                'technical_contact' => $data['seller_cnic'],
+                'ntn_cnic' => $sellerNtn ?? $sellerCnic,
+                'technical_contact' => $sellerCnic,
                 'contact_person' => $owner->name,
                 'invoice_series' => 'INV',
                 'currency' => 'PKR',
@@ -172,8 +175,11 @@ class CompanyService
             $company = $this->details($user, $companyId);
             abort_unless($company->pivot->role === CompanyRole::Owner, 403);
             Company::whereKey($companyId)->lockForUpdate()->firstOrFail();
-            $data['ntn_cnic'] = $data['seller_ntn'];
-            $data['technical_contact'] = $data['seller_cnic'];
+            $sellerNtn = filled($data['seller_ntn'] ?? null) ? trim((string) $data['seller_ntn']) : null;
+            $sellerCnic = filled($data['seller_cnic'] ?? null) ? trim((string) $data['seller_cnic']) : null;
+
+            $data['ntn_cnic'] = $sellerNtn ?? $sellerCnic;
+            $data['technical_contact'] = $sellerCnic;
             $fields = ['name', 'ntn_cnic', 'province', 'address', 'contact_person', 'email', 'phone',
                 'technical_contact', 'invoice_series', 'currency', 'fbr_environment', 'business_activity',
                 'sector', 'allowed_sandbox_scenarios'];

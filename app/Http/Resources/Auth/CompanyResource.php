@@ -10,10 +10,15 @@ class CompanyResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $sellerNtn = (strlen((string) $this->ntn_cnic) >= 7 && strlen((string) $this->ntn_cnic) <= 8) ? $this->ntn_cnic : null;
+        $sellerCnic = $this->technical_contact ?: (strlen((string) $this->ntn_cnic) === 13 ? $this->ntn_cnic : null);
+
         return [
             'id' => $this->id,
             'name' => $this->name,
             'ntn_cnic' => $this->ntn_cnic,
+            'seller_ntn' => $sellerNtn,
+            'seller_cnic' => $sellerCnic,
             'province' => $this->province,
             'address' => $this->address,
             'contact_person' => $this->contact_person,
