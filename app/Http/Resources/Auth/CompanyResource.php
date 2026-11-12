@@ -28,8 +28,8 @@ class CompanyResource extends JsonResource
             'invoice_series' => $this->invoice_series,
             'currency' => $this->currency,
             'fbr_environment' => $this->fbr_environment,
-            'business_activity' => $this->business_activity,
-            'sector' => $this->sector,
+            'business_activity' => $this->business_activity ?? [],
+            'sector' => $this->sector ?? [],
             'allowed_sandbox_scenarios' => app(FbrScenarioRegistry::class)->allowedCodesForCompany($this->resource),
             'role' => $this->pivot->role,
         ];

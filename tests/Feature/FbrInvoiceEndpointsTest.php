@@ -12,6 +12,7 @@ use App\Services\FbrReferenceService;
 use App\Services\InvoiceService;
 use App\Services\ItemService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Mockery\MockInterface;
@@ -152,6 +153,20 @@ class FbrInvoiceEndpointsTest extends TestCase
 
     public function test_production_omits_scenario_and_uses_production_token(): void
     {
+        $profileFingerprint = hash('sha256', json_encode([
+            $this->company->ntn_cnic, $this->company->name, $this->company->province, $this->company->address,
+            $this->company->business_activity, $this->company->sector,
+        ], JSON_THROW_ON_ERROR));
+        $tokenFingerprint = hash_hmac('sha256', 'dummy-sandbox', (string) config('app.key'));
+        $scenarioIds = array_column(app(\App\Services\FbrScenarioRegistry::class)->forCompany($this->company), 'id');
+        $cache = Cache::store(config('fbr.reference_cache_store'));
+        $cache->put('fbr:company-verification:v1:'.$this->company->id, [
+            'verified' => true, 'profile_fingerprint' => $profileFingerprint, 'token_fingerprint' => $tokenFingerprint,
+        ], now()->addHours(12));
+        $cache->put('fbr:sandbox-certification:v1:'.$this->company->id, [
+            'all_passed' => true, 'profile_fingerprint' => $profileFingerprint, 'token_fingerprint' => $tokenFingerprint,
+            'results' => array_map(fn ($id) => ['scenario_id' => $id, 'passed' => true], $scenarioIds),
+        ], now()->addDays(30));
         $this->company->forceFill(['fbr_environment' => 'production'])->save();
         Http::fake(['*' => Http::sequence()->push($this->valid())->push($this->valid(true))]);
         $this->postJson($this->url('validate'), $this->data('production'))->assertOk()->assertJsonPath('data.status', 'accepted');

@@ -1255,3 +1255,10 @@ tbody td:first-child { min-width: 140px; }
     border-left: 3px solid #f5c2c7;
 }
 
+
+.checkbox-group { min-width: 0; margin: 0; padding: 0; border: 0; }
+.checkbox-group legend { margin-bottom: 10px; font-size: 13px; font-weight: 600; }
+.checkbox-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--control-radius); }
+.checkbox-option { display: flex; align-items: center; gap: 9px; min-width: 0; font-size: 13px; line-height: 1.45; cursor: pointer; }
+.checkbox-option input { width: 18px; height: 18px; min-height: 18px; flex: 0 0 auto; margin: 0; accent-color: var(--color-primary); }
+@media (max-width: 600px) { .checkbox-grid { grid-template-columns: 1fr; } }

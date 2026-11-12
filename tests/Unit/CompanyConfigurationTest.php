@@ -27,25 +27,28 @@ class CompanyConfigurationTest extends TestCase
         ], $activities);
     }
 
-    public function test_all_thirteen_official_fbr_sectors_are_configured(): void
+    public function test_all_sixteen_official_fbr_sectors_are_configured(): void
     {
         $sectors = config('fbr.sectors');
 
-        $this->assertCount(13, $sectors);
+        $this->assertCount(16, $sectors);
         $this->assertEqualsCanonicalizing([
-            'All Other Sectors',
-            'Steel',
-            'FMCG',
-            'Textile',
-            'Telecom',
-            'Petroleum',
-            'Electricity Distribution',
-            'Gas Distribution',
-            'Services',
-            'Automobile',
-            'CNG Stations',
+            'Potassium Chlorate',
+            'Mobile',
             'Pharmaceuticals',
+            'Automobile',
+            'Gas Distribution',
+            'Petroleum',
+            'Textile',
+            'Steel',
+            'Cement or Concrete Blocks',
             'Wholesale / Retails',
+            'CNG Stations',
+            'Services',
+            'Electricity Distribution',
+            'Telecom',
+            'FMCG',
+            'All Other Sectors',
         ], $sectors);
     }
 
@@ -60,8 +63,8 @@ class CompanyConfigurationTest extends TestCase
                 'seller_cnic' => '3520112345671',
                 'province' => 'Sindh',
                 'address' => 'Valid Address',
-                'business_activity' => $activity,
-                'sector' => 'FMCG',
+                'business_activity' => [$activity],
+                'sector' => ['FMCG'],
             ], $rules);
 
             $this->assertFalse($validator->errors()->has('business_activity'), "Activity $activity failed validation");
@@ -79,12 +82,12 @@ class CompanyConfigurationTest extends TestCase
             'seller_cnic' => '3520112345671',
             'province' => 'Sindh',
             'address' => 'Valid Address',
-            'business_activity' => 'Astronaut',
-            'sector' => 'Crypto Mining',
+            'business_activity' => ['Astronaut'],
+            'sector' => ['Crypto Mining'],
         ], $rules);
 
-        $this->assertTrue($validator->errors()->has('business_activity'));
-        $this->assertTrue($validator->errors()->has('sector'));
+        $this->assertTrue($validator->errors()->has('business_activity.0'));
+        $this->assertTrue($validator->errors()->has('sector.0'));
     }
 
     public function test_create_company_request_allows_optional_activity_and_sector(): void
@@ -98,8 +101,8 @@ class CompanyConfigurationTest extends TestCase
             'province' => 'Punjab',
             'address' => 'Factory Area',
             'email' => 'seller@example.com',
-            'business_activity' => 'Retailer',
-            'sector' => 'Steel',
+            'business_activity' => ['Retailer'],
+            'sector' => ['Steel'],
         ], $rules);
 
         $this->assertFalse($validator->fails());
@@ -125,8 +128,8 @@ class CompanyConfigurationTest extends TestCase
         $this->assertContains('Add business activity in Company Details.', $blockers);
         $this->assertContains('Add sector in Company Details.', $blockers);
 
-        $company->business_activity = 'Retailer';
-        $company->sector = 'FMCG';
+        $company->business_activity = ['Retailer'];
+        $company->sector = ['FMCG'];
 
         $updatedBlockers = [];
         foreach (['name' => 'registered business name', 'ntn_cnic' => 'seller NTN/CNIC', 'province' => 'seller province',

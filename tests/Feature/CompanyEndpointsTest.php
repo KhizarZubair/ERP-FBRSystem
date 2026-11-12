@@ -33,7 +33,7 @@ class CompanyEndpointsTest extends TestCase
     {
         return ['name' => 'Updated Seller', 'seller_ntn' => '0123456', 'seller_cnic' => '3520112345671', 'province' => 'Sindh', 'address' => 'Test address',
             'invoice_series' => 'INV', 'currency' => 'PKR', 'fbr_environment' => 'sandbox',
-            'business_activity' => 'Manufacturer', 'sector' => 'All Other Sectors',
+            'business_activity' => ['Manufacturer', 'Retailer'], 'sector' => ['All Other Sectors', 'Steel'],
             'allowed_sandbox_scenarios' => ['SN001']];
     }
 
@@ -44,6 +44,8 @@ class CompanyEndpointsTest extends TestCase
         $url = '/api/v1/companies/'.$company->id;
         $this->actingAs($user)->putJson($url, [...$this->payload(), 'fbr_environment' => 'production', 'production_token' => 'review-production-only'])->assertOk();
         $this->putJson($url, [...$this->payload(), 'sandbox_token' => 'review-token-only', 'is_active' => false])->assertOk()->assertJsonPath('data.credentials.sandbox.configured', true)->assertJsonMissingPath('data.sandbox_token')->assertJsonMissingPath('data.credentials.sandbox.token');
+        $this->assertSame(['Manufacturer', 'Retailer'], $company->fresh()->business_activity);
+        $this->assertSame(['All Other Sectors', 'Steel'], $company->fresh()->sector);
         $integration = $company->fbrIntegrations()->where('environment', 'sandbox')->firstOrFail();
         $this->assertNotSame('review-token-only', $integration->getRawOriginal('token'));
         $this->assertSame('review-token-only', $integration->token);

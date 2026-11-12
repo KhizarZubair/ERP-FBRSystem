@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Card, FormActions, Input, Notice, PageHeader, Select, Textarea } from "../../components/ui";
+import { Button, Card, CheckboxGroup, FormActions, Input, Notice, PageHeader, Select, Textarea } from "../../components/ui";
 import { provinces } from "../../data/demo";
 import { ApiError } from "../../lib/api";
 import { navigate } from "../../lib/navigation";
@@ -11,6 +11,9 @@ import { FbrIntegrationPanel } from "./FbrIntegrationPanel";
 import { FbrGuidanceModal } from "./FbrGuidanceModal";
 import { ChangePasswordModal } from "../auth/ChangePasswordModal";
 import type { CompanyDetails } from "./companyApi";
+
+const businessActivities = ["Manufacturer", "Importer", "Distributor", "Wholesaler", "Retailer", "Exporter", "Service Provider", "Other"];
+const businessSectors = ["Potassium Chlorate", "Mobile", "Pharmaceuticals", "Automobile", "Gas Distribution", "Petroleum", "Textile", "Steel", "Cement or Concrete Blocks", "Wholesale / Retails", "CNG Stations", "Services", "Electricity Distribution", "Telecom", "FMCG", "All Other Sectors"];
 
 export function CompanyPage() {
     const { activeCompany, refresh } = useAuth();
@@ -29,6 +32,8 @@ function FirstCompanySetup({ onCreated }: { onCreated: () => Promise<void> }) {
     const [error, setError] = useState("");
     const [busy, setBusy] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+    const [businessActivity, setBusinessActivity] = useState<string[]>([]);
+    const [sector, setSector] = useState<string[]>([]);
     return <>
         <PageHeader title="Company & FBR Setup" description="Complete your single company profile to start using the ERP." />
         <form onSubmit={async event => {
@@ -45,6 +50,16 @@ function FirstCompanySetup({ onCreated }: { onCreated: () => Promise<void> }) {
                     seller_ntn: ["Either NTN or CNIC is required."],
                     seller_cnic: ["Either CNIC or NTN is required."],
                 });
+                setBusy(false);
+                return;
+            }
+            if (!businessActivity.length || !sector.length) {
+                setError("Please select at least one Business Nature and one Sector.");
+                setFieldErrors({
+                    business_activity: businessActivity.length ? [] : ["Select at least one business nature."],
+                    sector: sector.length ? [] : ["Select at least one sector."],
+                });
+                setBusy(false);
                 return;
             }
             try {
@@ -56,6 +71,8 @@ function FirstCompanySetup({ onCreated }: { onCreated: () => Promise<void> }) {
                     address: value("address"),
                     email: value("email"),
                     phone: value("phone"),
+                    business_activity: businessActivity,
+                    sector,
                 });
                 await onCreated();
             } catch (failure) {
@@ -70,6 +87,8 @@ function FirstCompanySetup({ onCreated }: { onCreated: () => Promise<void> }) {
                     <Input label="Seller NTN" name="seller_ntn" placeholder="e.g. 1234567" inputMode="numeric" pattern="[0-9]{7,8}" minLength={7} maxLength={8} error={fieldErrors.seller_ntn?.[0]} hint="7 or 8 digits (Required if CNIC is not provided)" />
                     <Input label="Seller CNIC" name="seller_cnic" placeholder="13 digits without dashes (e.g. 3520112345671)" inputMode="numeric" pattern="[0-9]{13}" minLength={13} maxLength={13} error={fieldErrors.seller_cnic?.[0]} hint="13 digits without dashes (Required if NTN is not provided)" />
                     <Select label="Province" name="province" required options={[{ value: "", label: "Select province" }, ...provinces]} error={fieldErrors.province?.[0]} />
+                    <CheckboxGroup label="FBR Business Nature / Activity" required options={businessActivities} value={businessActivity} onChange={setBusinessActivity} error={fieldErrors.business_activity?.[0]} hint="Select all business activities registered for this company." />
+                    <CheckboxGroup label="FBR Business Sector" required options={businessSectors} value={sector} onChange={setSector} error={fieldErrors.sector?.[0]} hint="Select every sector applicable to this company." />
                     <Input label="Company email" name="email" type="email" required maxLength={255} error={fieldErrors.email?.[0]} />
                     <Input label="Phone" name="phone" maxLength={30} error={fieldErrors.phone?.[0]} />
                     <Textarea label="Registered address" name="address" required maxLength={2000} error={fieldErrors.address?.[0]} />

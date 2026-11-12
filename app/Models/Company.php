@@ -27,6 +27,8 @@ class Company extends Model
     {
         return [
             'fbr_environment' => FbrEnvironment::class,
+            'business_activity' => 'array',
+            'sector' => 'array',
             'allowed_sandbox_scenarios' => 'array',
             'is_active' => 'boolean',
         ];

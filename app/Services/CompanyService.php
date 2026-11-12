@@ -26,6 +26,8 @@ class CompanyService
                 'phone' => $owner->phone,
                 'province' => $data['province'] ?? null,
                 'ntn_cnic' => $data['ntn_cnic'] ?? null,
+                'business_activity' => $data['business_activity'] ?? [],
+                'sector' => $data['sector'] ?? [],
             ]);
 
             $company->users()->attach($owner->id, [

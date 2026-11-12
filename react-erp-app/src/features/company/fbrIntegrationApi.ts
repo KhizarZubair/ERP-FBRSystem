@@ -21,8 +21,10 @@ export type FbrScenarioResult = {
 
 export type FbrVerification = {
     verified: boolean;
+    ntn_cnic?: string;
     status?: string;
     registration_type?: string;
+    statl_status_code?: string;
     checked_at?: string;
     message?: string;
 };

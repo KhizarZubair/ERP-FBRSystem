@@ -3,7 +3,7 @@ export type AuthCompany = {
     id: number; name: string; ntn_cnic: string | null; province: string | null;
     address: string | null; technical_contact: string | null; invoice_series: string;
     currency: string; fbr_environment: "sandbox" | "production"; role: string;
-    business_activity: string | null; sector: string | null; allowed_sandbox_scenarios: string[];
+    business_activity: string[]; sector: string[]; allowed_sandbox_scenarios: string[];
 };
 export type AuthUser = { id: number; name: string; email: string; phone: string | null; companies: AuthCompany[] };
 export type LoginData = { email: string; password: string };

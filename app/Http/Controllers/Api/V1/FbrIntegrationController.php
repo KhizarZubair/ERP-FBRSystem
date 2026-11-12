@@ -49,7 +49,26 @@ class FbrIntegrationController extends Controller
 
     private function profileFingerprint(Company $company): string
     {
-        return hash('sha256', json_encode([$company->ntn_cnic, $company->name, $company->province, $company->address], JSON_THROW_ON_ERROR));
+        return hash('sha256', json_encode([$company->ntn_cnic, $company->province, $company->address, $company->business_activity, $company->sector], JSON_THROW_ON_ERROR));
+    }
+
+    private function tokenFingerprint(string $token): string
+    {
+        return hash_hmac('sha256', $token, (string) config('app.key'));
+    }
+
+    private function invalidateFbrState(Company $company): void
+    {
+        $this->stateStore()->forget($this->verifiedKey($company));
+        $this->stateStore()->forget($this->certificationKey($company));
+        $sandbox = $company->fbrIntegrations()->where('environment', 'sandbox')->first();
+        if ($sandbox) {
+            $sandbox->status = FbrIntegrationStatus::Configured;
+            $sandbox->verified_at = null;
+            $sandbox->save();
+        }
+        // A production credential must not remain presented as unlocked after sandbox credentials change.
+        $company->fbrIntegrations()->where('environment', 'production')->delete();
     }
 
     private function currentCertification(Company $company): array
@@ -67,8 +86,12 @@ class FbrIntegrationController extends Controller
         $sandbox = $company->fbrIntegrations()->where('environment', 'sandbox')->first();
         $production = $company->fbrIntegrations()->where('environment', 'production')->first();
         $profileFingerprint = $this->profileFingerprint($company);
+        $sandboxToken = (string) ($sandbox?->token ?? '');
+        $currentTokenFingerprint = $sandboxToken !== '' ? $this->tokenFingerprint($sandboxToken) : '';
         $verifiedCurrentProfile = is_array($verified)
             && ($verified['verified'] ?? false) === true
+            && $currentTokenFingerprint !== ''
+            && hash_equals((string) ($verified['token_fingerprint'] ?? ''), $currentTokenFingerprint)
             && hash_equals((string) ($verified['profile_fingerprint'] ?? ''), $profileFingerprint);
 
         $assignedScenarios = $this->registry->forCompany($company);
@@ -84,6 +107,8 @@ class FbrIntegrationController extends Controller
 
         $certifiedCurrentProfile = ($certification['all_passed'] ?? false) === true
             && $allAssignedPassed
+            && $currentTokenFingerprint !== ''
+            && hash_equals((string) ($certification['token_fingerprint'] ?? ''), $currentTokenFingerprint)
             && hash_equals((string) ($certification['profile_fingerprint'] ?? ''), $profileFingerprint);
 
         return response()->json([
@@ -96,35 +121,42 @@ class FbrIntegrationController extends Controller
             'all_passed' => $verifiedCurrentProfile && $certifiedCurrentProfile,
             'certified_token_fingerprint' => $certification['token_fingerprint'] ?? null,
             'sandbox_configured' => $sandbox !== null && filled($sandbox->token),
-            'production_configured' => $production !== null && filled($production->token),
+            'production_configured' => $production !== null && filled($production->token) && $verifiedCurrentProfile && $certifiedCurrentProfile,
         ])->header('Cache-Control', 'no-store, private');
     }
 
     public function verifyFbr(Request $request): JsonResponse
     {
         $company = $this->company($request);
+        if (blank($company->business_activity) || blank($company->sector)) {
+            throw ValidationException::withMessages([
+                'business_activity' => 'Select the company business activity and sector from the official FBR list before verification.',
+            ]);
+        }
         $ntn = trim((string) $company->ntn_cnic);
-        if (! preg_match('/^(?:[0-9]{7,8}|[0-9]{13})$/', $ntn)) {
+        if (! preg_match('/^(?:[0-9]{7}|[0-9]{13})$/', $ntn)) {
             $this->stateStore()->forget($this->verifiedKey($company));
-            throw ValidationException::withMessages(['seller_ntn' => 'Seller NTN/CNIC must contain 7 or 8 digits, or exactly 13 digits.']);
+            throw ValidationException::withMessages(['company_ntn' => 'Company NTN/CNIC must contain exactly 7 or 13 digits.']);
         }
         $this->stateStore()->forget($this->verifiedKey($company));
 
-        $tokenInput = trim((string) $request->input('sandbox_token', ''));
+        $data = $request->validate(['sandbox_token' => ['sometimes', 'required', 'string', 'max:4096', 'regex:/^\S+$/']]);
+        $tokenInput = trim((string) ($data['sandbox_token'] ?? ''));
         if ($tokenInput !== '') {
-            $integration = $company->fbrIntegrations()->firstOrNew(['environment' => 'sandbox']);
-            $integration->token = $tokenInput;
-            $integration->status = FbrIntegrationStatus::Configured;
-            $integration->verified_at = null;
-            $integration->save();
+            $existingToken = (string) ($company->fbrIntegrations()->where('environment', 'sandbox')->first()?->token ?? '');
+            if ($existingToken === '' || ! hash_equals($existingToken, $tokenInput)) {
+                $this->invalidateFbrState($company);
+                $integration = $company->fbrIntegrations()->firstOrNew(['environment' => 'sandbox']);
+                $integration->token = $tokenInput;
+                $integration->status = FbrIntegrationStatus::Configured;
+                $integration->verified_at = null;
+                $integration->save();
+            }
         }
 
-        $verificationToken = (string) ($company->fbrIntegrations()->where('environment', 'sandbox')->value('token') ?? '');
+        $verificationToken = (string) ($company->fbrIntegrations()->where('environment', 'sandbox')->first()?->token ?? '');
         if ($verificationToken === '') {
-            $verificationToken = (string) config('fbr.verification_token', '');
-        }
-        if ($verificationToken === '') {
-            return response()->json(['verified' => false, 'message' => 'FBR taxpayer lookup requires an authorized API token. Configure FBR_VERIFICATION_TOKEN on the server or obtain a token through your approved integration setup.'], 503);
+            return response()->json(['verified' => false, 'message' => 'Save this company’s FBR Sandbox Token before taxpayer verification.'], 422);
         }
         try {
             // This is a real FBR lookup. No local/mock success is returned when FBR is unavailable.
@@ -135,35 +167,59 @@ class FbrIntegrationController extends Controller
             $typeResponse = $client->send('GET', config('fbr.registration_type_url'), ['json' => ['Registration_No' => $ntn]]);
 
             if (! $statusResponse->successful() || ! $typeResponse->successful()) {
-                return response()->json(['verified' => false, 'message' => 'FBR could not verify this taxpayer. Check the NTN/CNIC and FBR service access, then retry.'], 422);
+                $errors = [];
+                if (! $statusResponse->successful()) $errors['statl'] = [in_array($statusResponse->status(), [401, 403], true) ? 'FBR rejected the Sandbox Token for STATL. Check your PRAL Sandbox Token.' : 'STATL request failed with HTTP '.$statusResponse->status().'. Check the NTN and retry.'];
+                if (! $typeResponse->successful()) $errors['get_reg_type'] = [in_array($typeResponse->status(), [401, 403], true) ? 'FBR rejected the Sandbox Token for Get_Reg_Type. Check your PRAL Sandbox Token.' : 'Get_Reg_Type request failed with HTTP '.$typeResponse->status().'. Check the NTN and retry.'];
+                return response()->json(['verified' => false, 'message' => 'FBR taxpayer verification failed. Review the details below.', 'errors' => $errors], 422);
             }
             $status = $statusResponse->json();
             $type = $typeResponse->json();
             if (! is_array($status) || ! is_array($type)) {
                 return response()->json(['verified' => false, 'message' => 'FBR returned an unreadable taxpayer verification response.'], 502);
             }
+            // PRAL's documented STATL response uses the exact key "status code".
+            // The PDF shows codes 01/02 with "In-Active"; Active is accepted only
+            // when the returned status text explicitly says "Active".
+            $statusCode = trim((string) ($status['status code'] ?? ''));
             $statusText = trim((string) ($status['status'] ?? ''));
             $registrationType = trim((string) ($type['REGISTRATION_TYPE'] ?? ''));
+            $registrationNo = preg_replace('/\\D+/', '', (string) ($type['REGISTRATION_NO'] ?? ''));
+            $registrationStatusCode = trim((string) ($type['statuscode'] ?? ''));
             $active = strcasecmp($statusText, 'Active') === 0;
-            if ($statusText === '' || $registrationType === '' || ! $active) {
+            $ntnMatches = $registrationNo !== '' && hash_equals(preg_replace('/\\D+/', '', $ntn), $registrationNo);
+            $registered = $registrationStatusCode === '00' && strcasecmp($registrationType, 'Registered') === 0;
+            if (! $ntnMatches || ! $active || ! $registered) {
                 $this->stateStore()->put($this->verifiedKey($company), [
                     'verified' => false, 'status' => $statusText ?: 'Unknown',
+                    'statl_status_code' => $statusCode ?: 'Unknown',
                     'registration_type' => $registrationType ?: 'Unknown', 'checked_at' => now()->toIso8601String(),
                     'profile_fingerprint' => $this->profileFingerprint($company),
+                    'token_fingerprint' => $this->tokenFingerprint($verificationToken),
                 ], now()->addHours(12));
 
+                $errors = [];
+                if (! $ntnMatches) $errors['company_ntn'] = ['The NTN returned by FBR does not match the NTN saved in this company profile. Check Company Details.'];
+                if (! $active) $errors['statl'] = ['FBR STATL returned status '.($statusText ?: 'missing').' (status code '.($statusCode ?: 'missing').'). The company must have an explicit Active status.'];
+                if (! $registered) $errors['get_reg_type'] = ['FBR registration type is '.($registrationType ?: 'missing').' (status code '.($registrationStatusCode ?: 'missing').'). A Registered taxpayer record is required.'];
                 return response()->json(['verified' => false, 'status' => $statusText ?: 'Unknown', 'registration_type' => $registrationType ?: 'Unknown',
-                    'message' => 'FBR did not return an active, complete taxpayer record. Sandbox credentials remain locked.'], 422);
+                    'message' => 'Company verification failed. Correct the highlighted information and try again.', 'errors' => $errors], 422);
             }
-            $result = ['verified' => true, 'status' => $statusText, 'registration_type' => $registrationType,
-                'checked_at' => now()->toIso8601String(), 'profile_fingerprint' => $this->profileFingerprint($company)];
+            $result = ['verified' => true, 'ntn_cnic' => $ntn,
+                'checks' => [
+                    'company_ntn' => ['passed' => true, 'value' => $ntn, 'fbr_value' => $registrationNo],
+                    'statl' => ['passed' => true, 'value' => $statusText, 'status_code' => $statusCode],
+                    'get_reg_type' => ['passed' => true, 'registration_type' => $registrationType, 'status_code' => $registrationStatusCode],
+                ],
+                'status' => $statusText, 'statl_status_code' => $statusCode, 'registration_type' => $registrationType,
+                'checked_at' => now()->toIso8601String(), 'profile_fingerprint' => $this->profileFingerprint($company),
+                'token_fingerprint' => $this->tokenFingerprint($verificationToken)];
             $this->stateStore()->put($this->verifiedKey($company), $result, now()->addHours(12));
 
             return response()->json($result)->header('Cache-Control', 'no-store, private');
         } catch (Throwable $exception) {
             report($exception);
 
-            return response()->json(['verified' => false, 'message' => 'FBR taxpayer verification is currently unavailable. No verification was assumed; please retry later.'], 503);
+            return response()->json(['verified' => false, 'message' => 'FBR taxpayer verification is currently unavailable. No verification was assumed; please retry later.', 'errors' => ['fbr_connection' => ['Could not complete STATL and Get_Reg_Type requests. Check internet connectivity and the PRAL Sandbox Token, then retry.']]], 503);
         }
     }
 
@@ -174,10 +230,17 @@ class FbrIntegrationController extends Controller
             'sandbox_token' => ['required', 'string', 'max:4096', 'regex:/^\S+$/'],
         ]);
 
+        $newToken = trim($data['sandbox_token']);
+        $oldToken = (string) ($company->fbrIntegrations()->where('environment', 'sandbox')->first()?->token ?? '');
+        if ($oldToken === '' || ! hash_equals($oldToken, $newToken)) {
+            $this->invalidateFbrState($company);
+        }
         $integration = $company->fbrIntegrations()->firstOrNew(['environment' => 'sandbox']);
-        $integration->token = trim($data['sandbox_token']);
-        $integration->status = FbrIntegrationStatus::Configured;
-        $integration->verified_at = null;
+        $integration->token = $newToken;
+        if ($oldToken === '' || ! hash_equals($oldToken, $newToken)) {
+            $integration->status = FbrIntegrationStatus::Configured;
+            $integration->verified_at = null;
+        }
         $integration->save();
 
         return response()->json(['saved' => true, 'sandbox_configured' => true])->header('Cache-Control', 'no-store, private');
@@ -202,23 +265,20 @@ class FbrIntegrationController extends Controller
             'sandbox_token' => ['nullable', 'string', 'max:4096', 'regex:/^\S+$/'],
             'scenario_id' => ['sometimes', 'string', Rule::in($assignedIds)],
         ]);
-        $token = trim((string) ($data['sandbox_token'] ?? ''));
+        $token = (string) ($company->fbrIntegrations()->where('environment', 'sandbox')->first()?->token ?? '');
         if ($token === '') {
-            $token = (string) ($company->fbrIntegrations()->where('environment', 'sandbox')->value('token') ?? '');
+            throw ValidationException::withMessages(['sandbox_token' => 'Save the Sandbox Token first.']);
         }
-        if ($token === '') {
-            throw ValidationException::withMessages([
-                'sandbox_token' => 'Enter the Sandbox Token first.',
-            ]);
+        $tokenFingerprint = $this->tokenFingerprint($token);
+        abort_unless(hash_equals((string) ($verified['token_fingerprint'] ?? ''), $tokenFingerprint)
+            && hash_equals((string) ($verified['profile_fingerprint'] ?? ''), $this->profileFingerprint($company)),
+            422, 'The saved Sandbox Token or company profile has changed. Verify the company again before certification.');
+        if (isset($data['sandbox_token']) && ! hash_equals($token, trim((string) $data['sandbox_token']))) {
+            abort(422, 'The submitted token differs from the verified saved token. Save and verify the new token first.');
         }
-        $integration = $company->fbrIntegrations()->firstOrNew(['environment' => 'sandbox']);
-        $integration->token = $token;
-        $integration->status = FbrIntegrationStatus::Configured;
-        $integration->verified_at = null;
-        $integration->save();
+        $integration = $company->fbrIntegrations()->where('environment', 'sandbox')->firstOrFail();
 
         $previous = $this->currentCertification($company);
-        $tokenFingerprint = hash_hmac('sha256', $token, (string) config('app.key'));
         $profileFingerprint = $this->profileFingerprint($company);
 
         // Discard cached results if token changed OR if company profile changed
@@ -341,8 +401,12 @@ class FbrIntegrationController extends Controller
         $certification = $this->currentCertification($company);
         $profileFingerprint = $this->profileFingerprint($company);
 
+        $sandbox = $company->fbrIntegrations()->where('environment', 'sandbox')->first();
+        $currentSandboxFingerprint = $sandbox && filled($sandbox->token) ? $this->tokenFingerprint((string) $sandbox->token) : '';
         abort_unless(is_array($verified) && ($verified['verified'] ?? false) === true
-            && hash_equals((string) ($verified['profile_fingerprint'] ?? ''), $profileFingerprint), 422, 'Verify the current company profile with FBR first.');
+            && $currentSandboxFingerprint !== ''
+            && hash_equals((string) ($verified['token_fingerprint'] ?? ''), $currentSandboxFingerprint)
+            && hash_equals((string) ($verified['profile_fingerprint'] ?? ''), $profileFingerprint), 422, 'Verify the current company profile with its saved Sandbox Token first.');
 
         $assignedScenarios = $this->registry->forCompany($company);
         abort_if(empty($assignedScenarios), 422, 'Configure at least one assigned sandbox scenario in Company Details first.');
@@ -361,7 +425,7 @@ class FbrIntegrationController extends Controller
 
         $data = $request->validate(['production_token' => ['required', 'string', 'max:4096', 'regex:/^\S+$/']]);
         $sandbox = $company->fbrIntegrations()->where('environment', 'sandbox')->first();
-        abort_unless($sandbox && hash_equals((string) ($certification['token_fingerprint'] ?? ''), hash_hmac('sha256', (string) $sandbox->token, (string) config('app.key'))), 422,
+        abort_unless($sandbox && hash_equals((string) ($certification['token_fingerprint'] ?? ''), $this->tokenFingerprint((string) $sandbox->token)), 422,
             'Sandbox token changed after certification. Run sandbox certification again.');
 
         $integration = $company->fbrIntegrations()->firstOrNew(['environment' => 'production']);

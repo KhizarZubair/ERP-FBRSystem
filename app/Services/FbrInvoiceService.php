@@ -9,6 +9,7 @@ use App\Models\Invoice;
 use App\Models\User;
 use Brick\Math\BigDecimal;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -23,7 +24,49 @@ class FbrInvoiceService
 
     public function environments(Company $company): array
     {
-        return $company->fbrIntegrations()->where('environment', Company::findOrFail($company->id)->fbr_environment->value)->get()->filter(fn ($integration) => filled($integration->token) && strtoupper(trim($integration->token)) !== 'N/A')->pluck('environment')->map(fn ($environment) => $environment->value)->values()->all();
+        $environment = $company->fbr_environment->value;
+        $integration = $company->fbrIntegrations()->where('environment', $environment)->first();
+        if (! $integration || blank($integration->token) || strtoupper(trim($integration->token)) === 'N/A') {
+            return [];
+        }
+        if ($environment === 'production' && ! $this->productionCertificationIsCurrent($company)) {
+            return [];
+        }
+
+        return [$environment];
+    }
+
+    private function productionCertificationIsCurrent(Company $company): bool
+    {
+        $sandbox = $company->fbrIntegrations()->where('environment', 'sandbox')->first();
+        if (! $sandbox || blank($sandbox->token)) {
+            return false;
+        }
+
+        $profileFingerprint = hash('sha256', json_encode([
+            $company->ntn_cnic, $company->name, $company->province, $company->address,
+            $company->business_activity, $company->sector,
+        ], JSON_THROW_ON_ERROR));
+        $tokenFingerprint = hash_hmac('sha256', (string) $sandbox->token, (string) config('app.key'));
+        $store = Cache::store(config('fbr.reference_cache_store'));
+        $verified = $store->get('fbr:company-verification:v1:'.$company->id, []);
+        $certification = $store->get('fbr:sandbox-certification:v1:'.$company->id, []);
+        if (! is_array($verified) || ($verified['verified'] ?? false) !== true
+            || ! hash_equals((string) ($verified['profile_fingerprint'] ?? ''), $profileFingerprint)
+            || ! hash_equals((string) ($verified['token_fingerprint'] ?? ''), $tokenFingerprint)
+            || ! is_array($certification) || ($certification['all_passed'] ?? false) !== true
+            || ! hash_equals((string) ($certification['profile_fingerprint'] ?? ''), $profileFingerprint)
+            || ! hash_equals((string) ($certification['token_fingerprint'] ?? ''), $tokenFingerprint)) {
+            return false;
+        }
+
+        $assignedIds = array_column(app(FbrScenarioRegistry::class)->forCompany($company), 'id');
+        $passedIds = collect($certification['results'] ?? [])
+            ->filter(fn ($result) => ($result['passed'] ?? false) === true)
+            ->pluck('scenario_id')->all();
+
+        return $assignedIds !== [] && count($assignedIds) === count($passedIds)
+            && collect($assignedIds)->every(fn ($id) => in_array($id, $passedIds, true));
     }
 
     /** @return array{ready: bool, blockers: array<int, string>, scenarios: array<string, array<string, string>>} */

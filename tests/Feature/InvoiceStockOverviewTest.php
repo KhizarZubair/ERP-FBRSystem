@@ -33,7 +33,7 @@ class InvoiceStockOverviewTest extends TestCase
         DB::connection('mysql')->beginTransaction();
         $this->owner = User::factory()->create()->fresh();
         $this->workspace = app(CompanyService::class)->createOwnedCompany($this->owner, ['company_name' => 'Invoice Stock Tests']);
-        $this->workspace->forceFill(['ntn_cnic' => '0123456', 'province' => 'Sindh', 'address' => 'Seller address'])->save();
+        $this->workspace->forceFill(['ntn_cnic' => '0123456', 'province' => 'Sindh', 'address' => 'Seller address', 'business_activity' => 'Manufacturer', 'sector' => 'All Other Sectors'])->save();
         $this->buyer = app(CustomerService::class)->save($this->workspace, ['code' => 'BUYER', 'name' => 'Original Buyer',
             'registration_type' => 'Registered', 'ntn_cnic' => '0765432', 'province' => 'Sindh', 'address' => 'Buyer address', 'is_active' => true]);
         $this->item = app(ItemService::class)->save($this->workspace, ['sku' => 'ITEM', 'name' => 'Original Item', 'description' => 'Original Description',
@@ -132,6 +132,7 @@ class InvoiceStockOverviewTest extends TestCase
         $created = $this->postJson($this->base('invoices'), $this->invoicePayload())->assertCreated()->json('data');
         $other = User::factory()->create()->fresh();
         $otherCompany = app(CompanyService::class)->createOwnedCompany($other, ['company_name' => 'Other Workspace']);
+        $otherCompany->forceFill(['business_activity' => 'Manufacturer', 'sector' => 'All Other Sectors'])->save();
         $otherBase = '/api/v1/companies/'.$otherCompany->id;
         $this->actingAs($other)->getJson($this->base('invoices'))->assertNotFound();
         $this->getJson($this->base('overview'))->assertNotFound();
@@ -327,6 +328,7 @@ class InvoiceStockOverviewTest extends TestCase
         $this->postJson($this->base('invoices/'.$created['id'].'/approve'), ['version' => $created['version'], 'confirmed' => true])->assertForbidden();
         $other = User::factory()->create()->fresh();
         $otherCompany = app(CompanyService::class)->createOwnedCompany($other, ['company_name' => 'Other verification company']);
+        $otherCompany->forceFill(['business_activity' => 'Manufacturer', 'sector' => 'All Other Sectors'])->save();
         $otherBase = '/api/v1/companies/'.$otherCompany->id.'/invoices';
         $this->actingAs($other)->postJson($this->base('invoices/preview'), $this->invoicePayload())->assertNotFound();
         $this->postJson($otherBase.'/preview', [...$this->invoicePayload(), 'invoice_id' => $created['id'], 'version' => $created['version']])->assertNotFound();

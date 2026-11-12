@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Button, Card, FormActions, Input, Notice, Select, Textarea } from "../../components/ui";
+import { Button, Card, CheckboxGroup, FormActions, Input, Notice, Select, Textarea } from "../../components/ui";
 import { provinces } from "../../data/demo";
 import { ApiError } from "../../lib/api";
 import { companyApi, companyDraft } from "./companyApi";
@@ -12,34 +12,17 @@ export function CompanyForm({ company, onSaved, onCancel }: { company: CompanyDe
     const [errors, setErrors] = useState<Record<string, string[]>>({});
     const lock = useRef(false);
 
-    function change(key: Exclude<keyof CompanyDraft, "allowed_sandbox_scenarios">, value: string) {
+    function change(key: Exclude<keyof CompanyDraft, "allowed_sandbox_scenarios" | "business_activity" | "sector">, value: string) {
         setDraft(current => ({ ...current, [key]: value, ...(key === "fbr_environment" ? { sandbox_token: "", production_token: "" } : {}) }));
         setErrors(current => ({ ...current, [key]: [] }));
     }
 
-    const field = (key: Exclude<keyof CompanyDraft, "allowed_sandbox_scenarios">) => ({
+    const field = (key: Exclude<keyof CompanyDraft, "allowed_sandbox_scenarios" | "business_activity" | "sector">) => ({
         name: key,
         value: draft[key],
         onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => change(key, event.target.value),
         error: errors[key]?.[0]
     });
-
-    const businessActivityOptions = [
-        { value: "", label: "Select Business Nature / Activity" },
-        ...(company.business_activities?.length ? company.business_activities : [
-            "Manufacturer", "Importer", "Distributor", "Wholesaler",
-            "Retailer", "Exporter", "Service Provider", "Other"
-        ]).map(activity => ({ value: activity, label: activity }))
-    ];
-
-    const sectorOptions = [
-        { value: "", label: "Select FBR Sector" },
-        ...(company.sectors?.length ? company.sectors : [
-            "All Other Sectors", "Steel", "FMCG", "Textile", "Telecom", "Petroleum",
-            "Electricity Distribution", "Gas Distribution", "Services", "Automobile",
-            "CNG Stations", "Pharmaceuticals", "Wholesale / Retails"
-        ]).map(sector => ({ value: sector, label: sector }))
-    ];
 
     return <form onSubmit={async event => {
         event.preventDefault();
@@ -58,6 +41,16 @@ export function CompanyForm({ company, onSaved, onCancel }: { company: CompanyDe
             setBusy(false);
             return;
         }
+        if (!draft.business_activity.length || !draft.sector.length) {
+            setMessage("Please select at least one Business Nature and one Sector.");
+            setErrors({
+                business_activity: draft.business_activity.length ? [] : ["Select at least one business nature."],
+                sector: draft.sector.length ? [] : ["Select at least one sector."],
+            });
+            lock.current = false;
+            setBusy(false);
+            return;
+        }
         try {
             const response = await companyApi.update(company.id, {
                 name: draft.name,
@@ -68,8 +61,8 @@ export function CompanyForm({ company, onSaved, onCancel }: { company: CompanyDe
                 contact_person: draft.contact_person,
                 email: draft.email,
                 phone: draft.phone,
-                business_activity: draft.business_activity || undefined,
-                sector: draft.sector || undefined,
+                business_activity: draft.business_activity,
+                sector: draft.sector,
             });
             onSaved(response.data);
         } catch (error) {
@@ -88,8 +81,24 @@ export function CompanyForm({ company, onSaved, onCancel }: { company: CompanyDe
                     <Input label="Seller NTN" name="seller_ntn" placeholder="e.g. 1234567" inputMode="numeric" pattern="[0-9]{7,8}" minLength={7} maxLength={8} value={draft.ntn_cnic} onChange={event => change("ntn_cnic", event.target.value)} error={errors.seller_ntn?.[0]} hint="7 or 8 digits (Required if CNIC is not provided)." />
                     <Input label="Seller CNIC" name="seller_cnic" placeholder="13 digits without dashes (e.g. 3520112345671)" inputMode="numeric" pattern="[0-9]{13}" minLength={13} maxLength={13} value={draft.seller_cnic} onChange={event => change("seller_cnic", event.target.value)} error={errors.seller_cnic?.[0]} hint="13 digits without dashes (Required if NTN is not provided)." />
                     <Select label="Province" required options={[{ value: "", label: "Select province" }, ...provinces]} {...field("province")} />
-                    <Select label="FBR Business Activity / Nature *" required options={businessActivityOptions} {...field("business_activity")} hint="Primary business activity as registered with FBR (Manufacturer, Retailer, Wholesaler, etc.)." />
-                    <Select label="FBR Business Sector *" required options={sectorOptions} {...field("sector")} hint="Official sector determining applicable FBR tax rules and sandbox testing scenarios." />
+                    <CheckboxGroup
+                        label="FBR Business Nature / Activity"
+                        required
+                        options={company.business_activities}
+                        value={draft.business_activity}
+                        onChange={value => { setDraft(current => ({ ...current, business_activity: value })); setErrors(current => ({ ...current, business_activity: [] })); }}
+                        error={errors.business_activity?.[0]}
+                        hint="Select all business activities registered for this company."
+                    />
+                    <CheckboxGroup
+                        label="FBR Business Sector"
+                        required
+                        options={company.sectors}
+                        value={draft.sector}
+                        onChange={value => { setDraft(current => ({ ...current, sector: value })); setErrors(current => ({ ...current, sector: [] })); }}
+                        error={errors.sector?.[0]}
+                        hint="Select every sector applicable to this company."
+                    />
                     <Input label="Contact person" maxLength={255} {...field("contact_person")} />
                     <Input label="Company email" required hint="Business contact email; this does not change your login email." type="email" maxLength={255} {...field("email")} />
                     <Input label="Phone" maxLength={30} {...field("phone")} />

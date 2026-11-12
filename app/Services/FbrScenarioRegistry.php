@@ -40,7 +40,7 @@ class FbrScenarioRegistry
                 'id' => 'SN003',
                 'title' => 'Sale of Steel (Melted and Re-Rolled)',
                 'description' => 'Steel sector supply by melted and re-rolled manufacturers',
-                'sale_type' => 'Steel (melted and re-rolled)',
+                'sale_type' => 'Steel Melting and re-rolling',
                 'buyer_type' => 'Registered',
                 'rate' => '18%',
                 'hs_code' => '7206.1000',
@@ -52,7 +52,7 @@ class FbrScenarioRegistry
                 'id' => 'SN004',
                 'title' => 'Sale by Ship Breakers',
                 'description' => 'Supply by ship breaking industry under special sector rules',
-                'sale_type' => 'Ship breakers',
+                'sale_type' => 'Ship breaking',
                 'buyer_type' => 'Registered',
                 'rate' => '18%',
                 'hs_code' => '8908.0000',
@@ -88,7 +88,7 @@ class FbrScenarioRegistry
                 'id' => 'SN007',
                 'title' => 'Zero rated goods sale',
                 'description' => 'Zero-rated supplies (Exports under Section 4 or 5th Schedule)',
-                'sale_type' => 'Zero Rated Goods',
+                'sale_type' => 'Goods at zero-rate',
                 'buyer_type' => 'Registered',
                 'rate' => '0%',
                 'further_tax' => 0.0,
@@ -98,7 +98,7 @@ class FbrScenarioRegistry
                 'id' => 'SN008',
                 'title' => '3rd Schedule goods (Retail Price)',
                 'description' => 'FMCG & Third Schedule goods taxed on printed Retail Price (Sec 3(2)(a))',
-                'sale_type' => 'Third Schedule Goods',
+                'sale_type' => '3rd Schedule Goods',
                 'buyer_type' => 'Registered',
                 'rate' => '18%',
                 'retail_price' => 1500.0,
@@ -121,7 +121,7 @@ class FbrScenarioRegistry
                 'id' => 'SN010',
                 'title' => 'Telecom services rendered',
                 'description' => 'Telecommunication services under Federal / Provincial service tax',
-                'sale_type' => 'Services',
+                'sale_type' => 'Telecommunication services',
                 'buyer_type' => 'Registered',
                 'rate' => '19.5%',
                 'hs_code' => '9812.0000',
@@ -157,7 +157,7 @@ class FbrScenarioRegistry
                 'id' => 'SN013',
                 'title' => 'Electricity Supply to Retailers',
                 'description' => 'Electric power distribution under special sales tax regime',
-                'sale_type' => 'Electricity Supply',
+                'sale_type' => 'Electricity Supply to Retailers',
                 'buyer_type' => 'Registered',
                 'rate' => '18%',
                 'hs_code' => '2716.0000',
@@ -169,7 +169,7 @@ class FbrScenarioRegistry
                 'id' => 'SN014',
                 'title' => 'Sale of Gas to CNG stations',
                 'description' => 'Natural gas transmission and supply to CNG fuel stations',
-                'sale_type' => 'Gas Supply to CNG',
+                'sale_type' => 'Gas to CNG stations',
                 'buyer_type' => 'Registered',
                 'rate' => '18%',
                 'hs_code' => '2711.2100',
@@ -193,7 +193,7 @@ class FbrScenarioRegistry
                 'id' => 'SN016',
                 'title' => 'Processing / Conversion of Goods',
                 'description' => 'Processing, fabrication or conversion of goods for another entity',
-                'sale_type' => 'Processing / Conversion',
+                'sale_type' => 'Processing/ Conversion of Goods',
                 'buyer_type' => 'Registered',
                 'rate' => '18%',
                 'further_tax' => 0.0,
@@ -203,7 +203,7 @@ class FbrScenarioRegistry
                 'id' => 'SN017',
                 'title' => 'Sale of Goods where FED is charged in ST mode',
                 'description' => 'Federal Excise Duty in Sales Tax mode (Beverages, tobacco, lubricants)',
-                'sale_type' => 'Goods with FED in ST mode',
+                'sale_type' => 'Goods (FED in ST Mode)',
                 'buyer_type' => 'Registered',
                 'rate' => '18%',
                 'fed_payable' => 50.0,
@@ -214,7 +214,7 @@ class FbrScenarioRegistry
                 'id' => 'SN018',
                 'title' => 'Services rendered (FED in ST mode)',
                 'description' => 'Taxable services with Federal Excise Duty levied in ST mode',
-                'sale_type' => 'Services with FED in ST mode',
+                'sale_type' => 'Services (FED in ST Mode)',
                 'buyer_type' => 'Registered',
                 'rate' => '16%',
                 'hs_code' => '9801.0000',
@@ -226,7 +226,7 @@ class FbrScenarioRegistry
                 'id' => 'SN019',
                 'title' => 'Provincial Sales Tax on services',
                 'description' => 'Services subject to Provincial Revenue Authority sales tax (PRA/SRB/KPRA/BRA)',
-                'sale_type' => 'Services (Provincial Sales Tax)',
+                'sale_type' => 'Services',
                 'buyer_type' => 'Registered',
                 'rate' => '13%',
                 'hs_code' => '9801.0000',
@@ -238,7 +238,7 @@ class FbrScenarioRegistry
                 'id' => 'SN020',
                 'title' => 'Electric Vehicles',
                 'description' => 'Automotive sector electric vehicles under concessionary tax regime',
-                'sale_type' => 'Electric Vehicles',
+                'sale_type' => 'Electric Vehicle',
                 'buyer_type' => 'Registered',
                 'rate' => '1%',
                 'hs_code' => '8703.8090',
@@ -250,7 +250,7 @@ class FbrScenarioRegistry
                 'id' => 'SN021',
                 'title' => 'Cement / Concrete Block',
                 'description' => 'Cement and pre-cast concrete block manufacturing sector supply',
-                'sale_type' => 'Cement / Concrete Block',
+                'sale_type' => 'Cement /Concrete Block',
                 'buyer_type' => 'Registered',
                 'rate' => '18%',
                 'hs_code' => '2523.2900',
@@ -286,7 +286,7 @@ class FbrScenarioRegistry
                 'id' => 'SN024',
                 'title' => 'Goods listed in SRO 297(I)/2023',
                 'description' => 'Special goods covered under statutory SRO 297(I)/2023',
-                'sale_type' => 'SRO 297(I)/2023 Goods',
+                'sale_type' => 'Goods as per SRO.297(I)/2023',
                 'buyer_type' => 'Registered',
                 'rate' => '18%',
                 'sro_schedule_no' => 'SRO 297(I)/2023',
@@ -298,7 +298,7 @@ class FbrScenarioRegistry
                 'id' => 'SN025',
                 'title' => 'Drugs sold under 8th Schedule',
                 'description' => 'Pharmaceutical products & medicines chargeable under Eighth Schedule',
-                'sale_type' => 'Drugs under 8th Schedule',
+                'sale_type' => 'Non-Adjustable Supplies',
                 'buyer_type' => 'Registered',
                 'rate' => '1%',
                 'hs_code' => '3004.9000',
@@ -322,7 +322,7 @@ class FbrScenarioRegistry
                 'id' => 'SN027',
                 'title' => 'Retailers sales to End Consumers (3rd Schedule goods)',
                 'description' => 'Retail sales of 3rd Schedule goods to end consumers on retail price',
-                'sale_type' => 'Third Schedule Goods',
+                'sale_type' => '3rd Schedule Goods',
                 'buyer_type' => 'Unregistered',
                 'rate' => '18%',
                 'retail_price' => 1500.0,
@@ -350,142 +350,118 @@ class FbrScenarioRegistry
      *
      * @return array<int, string>
      */
-    public function scenariosForSectorAndActivity(?string $businessActivity, ?string $sector): array
+    public function scenariosForSectorAndActivity(string|array|null $businessActivity, string|array|null $sector): array
     {
-        $activity = strtolower(trim((string) $businessActivity));
-        $sec = strtolower(trim((string) $sector));
+        $activities = array_values(array_filter(array_map(
+            fn ($value): string => strtolower(trim((string) $value)),
+            is_array($businessActivity) ? $businessActivity : [$businessActivity]
+        )));
+        $sectors = array_values(array_filter(array_map(
+            fn ($value): string => strtolower(trim((string) $value)),
+            is_array($sector) ? $sector : [$sector]
+        )));
+        $resolved = [];
+        foreach ($activities ?: [''] as $activity) {
+            foreach ($sectors ?: [''] as $sec) {
+                $resolved = [...$resolved, ...$this->scenariosForSingleSectorAndActivity($activity, $sec)];
+            }
+        }
+
+        return array_values(array_unique($resolved));
+    }
+
+    /** @return array<int, string> */
+    private function scenariosForSingleSectorAndActivity(string $activity, string $sec): array
+    {
 
         $base = ['SN001', 'SN002', 'SN005', 'SN006', 'SN007', 'SN015', 'SN016', 'SN017', 'SN021', 'SN022', 'SN024'];
+        $retail = ['SN026', 'SN027', 'SN028', 'SN008'];
+        $sectorScenario = match (true) {
+            str_contains($sec, 'steel') => ['SN003', 'SN004', 'SN011'],
+            str_contains($sec, 'potassium chlorate') => ['SN022'],
+            str_contains($sec, 'mobile') && ! str_contains($sec, 'automobile') => ['SN015'],
+            str_contains($sec, 'cement') || str_contains($sec, 'concrete block') => ['SN021'],
+            str_contains($sec, 'fmcg') => ['SN008'],
+            str_contains($sec, 'textile') => ['SN009'],
+            str_contains($sec, 'telecom') => ['SN010'],
+            str_contains($sec, 'petroleum') => ['SN012'],
+            str_contains($sec, 'electricity') => ['SN013'],
+            str_contains($sec, 'gas') => ['SN014'],
+            str_contains($sec, 'service') => ['SN018', 'SN019'],
+            str_contains($sec, 'automobile') => ['SN020'],
+            str_contains($sec, 'cng') => ['SN023'],
+            str_contains($sec, 'pharmaceutical') => ['SN025'],
+            str_contains($sec, 'wholesale') || str_contains($sec, 'retail') => ['SN026', 'SN027', 'SN028', 'SN008'],
+            default => [],
+        };
 
-        // 1. Retailer Activity (Document Section 10 Rows 76–88)
-        if ($activity === 'retailer') {
-            if (str_contains($sec, 'steel')) {
-                return ['SN003', 'SN004', 'SN011'];
-            }
-            if (str_contains($sec, 'textile')) {
-                return ['SN008', 'SN009', 'SN026', 'SN027', 'SN028'];
-            }
-            if (str_contains($sec, 'telecom')) {
-                return ['SN008', 'SN010', 'SN026', 'SN027', 'SN028'];
-            }
-            if (str_contains($sec, 'petroleum')) {
-                return ['SN008', 'SN012', 'SN026', 'SN027', 'SN028'];
-            }
-            if (str_contains($sec, 'electricity')) {
-                return ['SN008', 'SN013', 'SN026', 'SN027', 'SN028'];
-            }
-            if (str_contains($sec, 'gas')) {
-                return ['SN008', 'SN014', 'SN026', 'SN027', 'SN028'];
-            }
-            if (str_contains($sec, 'service')) {
-                return ['SN008', 'SN018', 'SN019', 'SN026', 'SN027', 'SN028'];
-            }
-            if (str_contains($sec, 'automobile')) {
-                return ['SN008', 'SN020', 'SN026', 'SN027', 'SN028'];
-            }
-            if (str_contains($sec, 'cng')) {
-                return ['SN008', 'SN023', 'SN026', 'SN027', 'SN028'];
-            }
-            if (str_contains($sec, 'pharmaceutical')) {
-                return ['SN008', 'SN025', 'SN026', 'SN027', 'SN028'];
-            }
-            if (str_contains($sec, 'wholesale') || str_contains($sec, 'retail') || str_contains($sec, 'fmcg')) {
-                return ['SN008', 'SN026', 'SN027', 'SN028'];
-            }
-
-            return array_values(array_unique([...$base, 'SN008', 'SN026', 'SN027', 'SN028']));
-        }
-
-        // 2. Service Provider Activity (Document Section 10 Rows 91–103)
-        if ($activity === 'service provider') {
-            if (str_contains($sec, 'steel')) {
-                return ['SN003', 'SN004', 'SN011', 'SN018', 'SN019'];
-            }
-            if (str_contains($sec, 'fmcg')) {
-                return ['SN008', 'SN018', 'SN019'];
-            }
-            if (str_contains($sec, 'textile')) {
-                return ['SN009', 'SN018', 'SN019'];
-            }
-            if (str_contains($sec, 'telecom')) {
-                return ['SN010', 'SN018', 'SN019'];
-            }
-            if (str_contains($sec, 'petroleum')) {
-                return ['SN012', 'SN018', 'SN019'];
-            }
-            if (str_contains($sec, 'electricity')) {
-                return ['SN013', 'SN018', 'SN019'];
-            }
-            if (str_contains($sec, 'gas')) {
-                return ['SN014', 'SN018', 'SN019'];
-            }
-            if (str_contains($sec, 'automobile')) {
-                return ['SN020', 'SN018', 'SN019'];
-            }
-            if (str_contains($sec, 'cng')) {
-                return ['SN023', 'SN018', 'SN019'];
-            }
-            if (str_contains($sec, 'pharmaceutical')) {
-                return ['SN025', 'SN018', 'SN019'];
-            }
-            if (str_contains($sec, 'wholesale') || str_contains($sec, 'retail')) {
-                return ['SN008', 'SN018', 'SN019', 'SN026', 'SN027', 'SN028'];
-            }
-
-            return ['SN010', 'SN018', 'SN019'];
-        }
-
-        // 3. Exporter with specific zero-rated rules
-        if ($activity === 'exporter' && (str_contains($sec, 'other') || $sec === '')) {
-            return ['SN001', 'SN007'];
-        }
-
-        // 4. Sector-based mapping for Manufacturer, Importer, Distributor, Wholesaler, Exporter, Other
-        if (str_contains($sec, 'steel')) {
-            return array_values(array_unique([...$base, 'SN003', 'SN004', 'SN011']));
-        }
-
-        if (str_contains($sec, 'fmcg')) {
-            return array_values(array_unique([...$base, 'SN008']));
-        }
-
-        if (str_contains($sec, 'textile')) {
-            return array_values(array_unique([...$base, 'SN009']));
-        }
-
-        if (str_contains($sec, 'petroleum')) {
-            return array_values(array_unique([...$base, 'SN012']));
-        }
-
-        if (str_contains($sec, 'telecom')) {
-            return array_values(array_unique([...$base, 'SN010']));
-        }
-
-        if (str_contains($sec, 'gas') || str_contains($sec, 'cng')) {
-            return array_values(array_unique([...$base, 'SN014', 'SN023']));
-        }
-
-        if (str_contains($sec, 'electricity')) {
-            return array_values(array_unique([...$base, 'SN013']));
-        }
-
-        if (str_contains($sec, 'service')) {
-            return array_values(array_unique([...$base, 'SN018', 'SN019']));
-        }
-
-        if (str_contains($sec, 'automobile')) {
-            return array_values(array_unique([...$base, 'SN020']));
-        }
-
-        if (str_contains($sec, 'pharmaceutical')) {
-            return array_values(array_unique([...$base, 'SN025']));
-        }
-
-        if (str_contains($sec, 'wholesale') || str_contains($sec, 'retail')) {
-            return array_values(array_unique([...$base, 'SN008', 'SN026', 'SN027', 'SN028']));
-        }
-
-        return $base;
+        // Section 10, pages 47–51. Keep each activity's official row distinct.
+        return match ($activity) {
+            'manufacturer' => match (true) {
+                str_contains($sec, 'steel') => ['SN003', 'SN004', 'SN011'],
+                str_contains($sec, 'fmcg') => [...$base, 'SN008'],
+                str_contains($sec, 'textile') => [...$base, 'SN009'],
+                str_contains($sec, 'telecom') => [...$base, 'SN010'],
+                str_contains($sec, 'petroleum') => [...$base, 'SN012'],
+                str_contains($sec, 'electricity') => [...$base, 'SN013'],
+                str_contains($sec, 'gas') => [...$base, 'SN014'],
+                str_contains($sec, 'service') => [...$base, 'SN018', 'SN019'],
+                str_contains($sec, 'automobile') => [...$base, 'SN020'],
+                str_contains($sec, 'cng') => [...$base, 'SN023'],
+                str_contains($sec, 'pharmaceutical') => $base,
+                str_contains($sec, 'wholesale') || str_contains($sec, 'retail') => [...$base, 'SN026', 'SN027', 'SN028', 'SN008'],
+                default => $base,
+            },
+            'importer' => array_values(array_unique([...$base, ...$sectorScenario])),
+            'distributor', 'wholesaler' => match (true) {
+                str_contains($sec, 'steel') => ['SN003', 'SN004', 'SN011', ...$retail],
+                str_contains($sec, 'all other') => [...$base, ...$retail],
+                str_contains($sec, 'wholesale') || str_contains($sec, 'retail') => ['SN001', 'SN002', ...$retail],
+                default => array_values(array_unique([...$sectorScenario, ...$retail])),
+            },
+            'exporter' => match (true) {
+                str_contains($sec, 'steel') => [...$base, 'SN003', 'SN004', 'SN011'],
+                str_contains($sec, 'fmcg') => [...$base, 'SN008'],
+                str_contains($sec, 'textile') => [...$base, 'SN009'],
+                str_contains($sec, 'telecom') => [...$base, 'SN010'],
+                str_contains($sec, 'petroleum') => [...$base, 'SN012'],
+                str_contains($sec, 'electricity') => [...$base, 'SN013'],
+                str_contains($sec, 'gas') => [...$base, 'SN014'],
+                str_contains($sec, 'service') => [...$base, 'SN018', 'SN019'],
+                str_contains($sec, 'automobile') => [...$base, 'SN020'],
+                str_contains($sec, 'cng') => [...$base, 'SN023'],
+                str_contains($sec, 'pharmaceutical') => [...$base, 'SN025'],
+                str_contains($sec, 'wholesale') || str_contains($sec, 'retail') => [...$base, 'SN026', 'SN027', 'SN028', 'SN008'],
+                default => $base,
+            },
+            'retailer' => match (true) {
+                str_contains($sec, 'steel') => ['SN003', 'SN004', 'SN011'],
+                str_contains($sec, 'all other') => [...$base, ...$retail],
+                str_contains($sec, 'pharmaceutical') => ['SN025', ...$retail],
+                default => array_values(array_unique([...$sectorScenario, ...$retail])),
+            },
+            'service provider' => match (true) {
+                str_contains($sec, 'all other') => [...$base, 'SN018', 'SN019'],
+                str_contains($sec, 'wholesale') || str_contains($sec, 'retail') => [...$retail, 'SN018', 'SN019'],
+                default => array_values(array_unique([...$sectorScenario, 'SN018', 'SN019'])),
+            },
+            'other' => match (true) {
+                str_contains($sec, 'steel') => [...$base, 'SN003', 'SN004', 'SN011'],
+                str_contains($sec, 'fmcg') => [...$base, 'SN008'],
+                str_contains($sec, 'textile') => [...$base, 'SN009'],
+                str_contains($sec, 'telecom') => [...$base, 'SN010'],
+                str_contains($sec, 'petroleum') => [...$base, 'SN012'],
+                str_contains($sec, 'electricity') => [...$base, 'SN013'],
+                str_contains($sec, 'gas') => [...$base, 'SN014'],
+                str_contains($sec, 'service') => [...$base, 'SN018', 'SN019'],
+                str_contains($sec, 'automobile') => [...$base, 'SN020'],
+                str_contains($sec, 'cng') => [...$base, 'SN023'],
+                str_contains($sec, 'pharmaceutical') => [...$base, 'SN025'],
+                str_contains($sec, 'wholesale') || str_contains($sec, 'retail') => [...$base, 'SN026', 'SN027', 'SN028', 'SN008'],
+                default => $base,
+            },
+            default => [],
+        };
     }
 
     /**
@@ -517,11 +493,6 @@ class FbrScenarioRegistry
      */
     public function allowedCodesForCompany(Company $company): array
     {
-        $allowed = $company->allowed_sandbox_scenarios ?? [];
-        if (is_array($allowed) && ! empty($allowed)) {
-            return array_values($allowed);
-        }
-
         return $this->scenariosForSectorAndActivity($company->business_activity, $company->sector);
     }
 
@@ -583,7 +554,7 @@ class FbrScenarioRegistry
             $salesTaxApplicable = round($taxBase * ($ratePercent / 100), 2);
         }
 
-        $totalValues = $unitPrice + $salesTaxApplicable + $furtherTax + $extraTax + $fedPayable;
+        $totalValues = $taxBase + $salesTaxApplicable + $furtherTax + $extraTax + $fedPayable;
 
         $buyerNTN = $def['buyer_type'] === 'Registered' ? '1000000000000' : '';
         $buyerName = $def['buyer_type'] === 'Registered' ? 'FERTILIZER MANUFAC IRS NEW' : 'End Consumer / Unregistered Buyer';
@@ -609,7 +580,7 @@ class FbrScenarioRegistry
                 'uoM' => $def['uom'] ?? 'Numbers, pieces, units',
                 'quantity' => $quantity,
                 'totalValues' => $totalValues,
-                'valueSalesExcludingST' => $unitPrice,
+                'valueSalesExcludingST' => $taxBase,
                 'fixedNotifiedValueOrRetailPrice' => $retailPrice,
                 'salesTaxApplicable' => $salesTaxApplicable,
                 'salesTaxWithheldAtSource' => 0.0,

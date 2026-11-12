@@ -39,7 +39,7 @@ class FbrEndUserLawyerVerificationTest extends TestCase
             'unit_price' => '120.000000', // Wholesale net value: 100 * 120 = 12,000
             'fixed_notified_value_or_retail_price' => '150.000000', // Printed retail price: 100 * 150 = 15,000
             'tax_rate_percent' => '18.000000',
-            'sale_type' => 'Third Schedule Goods',
+            'sale_type' => '3rd Schedule Goods',
             'further_tax' => '360.000000', // User erroneously entered further tax for unregistered buyer
         ];
 
@@ -180,7 +180,7 @@ class FbrEndUserLawyerVerificationTest extends TestCase
         // Check Line item fields required by FBR DI API Section 4
         $this->assertCount(1, $payload['items']);
         $item = $payload['items'][0];
-        $this->assertSame('Third Schedule Goods', $item['saleType']);
+        $this->assertSame('3rd Schedule Goods', $item['saleType']);
         $this->assertGreaterThan(0, $item['fixedNotifiedValueOrRetailPrice'], 'SN008 must provide retail price');
         $this->assertArrayHasKey('hsCode', $item);
         $this->assertArrayHasKey('productDescription', $item);

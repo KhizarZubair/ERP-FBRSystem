@@ -45,7 +45,7 @@ class FbrScenarioRunnerTest extends TestCase
         $scenarios = $this->registry->scenariosForSectorAndActivity('Manufacturer', 'Steel');
 
         $this->assertEqualsCanonicalizing(
-            ['SN001', 'SN002', 'SN003', 'SN004', 'SN005', 'SN006', 'SN007', 'SN011', 'SN015', 'SN016', 'SN017', 'SN021', 'SN022', 'SN024'],
+            ['SN003', 'SN004', 'SN011'],
             $scenarios
         );
         $this->assertContains('SN003', $scenarios, 'Steel must include Melted Steel SN003');
@@ -82,7 +82,7 @@ class FbrScenarioRunnerTest extends TestCase
         $scenarios = $this->registry->scenariosForSectorAndActivity('Service Provider', 'Services');
 
         $this->assertEqualsCanonicalizing(
-            ['SN010', 'SN018', 'SN019'],
+            ['SN018', 'SN019'],
             $scenarios
         );
     }
@@ -92,7 +92,7 @@ class FbrScenarioRunnerTest extends TestCase
         $scenarios = $this->registry->scenariosForSectorAndActivity('Exporter', 'All Other Sectors');
 
         $this->assertEqualsCanonicalizing(
-            ['SN001', 'SN007'],
+            ['SN001', 'SN002', 'SN005', 'SN006', 'SN007', 'SN015', 'SN016', 'SN017', 'SN021', 'SN022', 'SN024'],
             $scenarios
         );
         $this->assertContains('SN007', $scenarios, 'Exporter must include Zero-rated SN007');
@@ -132,10 +132,13 @@ class FbrScenarioRunnerTest extends TestCase
 
         $this->assertSame('SN008', $payload['scenarioId']);
         $this->assertSame('1234567', $payload['sellerNTNCNIC']);
-        $this->assertSame('Third Schedule Goods', $payload['items'][0]['saleType']);
+        $this->assertSame('3rd Schedule Goods', $payload['items'][0]['saleType']);
         $this->assertEquals(1500.0, $payload['items'][0]['fixedNotifiedValueOrRetailPrice']);
         // 1500 * 18% = 270.00
         $this->assertEquals(270.0, $payload['items'][0]['salesTaxApplicable']);
+        // For Third Schedule goods the taxable base is the printed retail price.
+        $this->assertEquals(1770.0, $payload['items'][0]['totalValues']);
+        $this->assertEquals(1500.0, $payload['items'][0]['valueSalesExcludingST']);
         $this->assertEquals(0.0, $payload['items'][0]['furtherTax']);
     }
 

@@ -31,8 +31,16 @@ class InvoiceCalculator
         // Sector & Business Activity classification
         $retailPrice = $amount('fixed_notified_value_or_retail_price');
         $saleType = strtolower(trim((string) ($line['sale_type'] ?? '')));
-        $sector = strtolower(trim((string) ($context['sector'] ?? '')));
-        $businessActivity = strtolower(trim((string) ($context['business_activity'] ?? '')));
+        $sectors = array_map(
+            fn ($value): string => strtolower(trim((string) $value)),
+            is_array($context['sector'] ?? null) ? $context['sector'] : [$context['sector'] ?? '']
+        );
+        $businessActivities = array_map(
+            fn ($value): string => strtolower(trim((string) $value)),
+            is_array($context['business_activity'] ?? null) ? $context['business_activity'] : [$context['business_activity'] ?? '']
+        );
+        $hasFmcgSector = collect($sectors)->contains(fn (string $value): bool => str_contains($value, 'fmcg'));
+        $isRetailer = in_array('retailer', $businessActivities, true);
         $scenarioId = strtoupper(trim((string) ($context['scenario_id'] ?? $line['scenario_id'] ?? '')));
 
         // Check if item falls under Sales Tax Act Section 3(2)(a) (Third Schedule / FMCG Retail Price)
@@ -40,7 +48,7 @@ class InvoiceCalculator
             || str_contains($saleType, 'third schedule')
             || $scenarioId === 'SN008'
             || $scenarioId === 'SN027'
-            || ($retailPrice->isPositive() && (str_contains($sector, 'fmcg') || str_contains($saleType, 'retail')));
+            || ($retailPrice->isPositive() && ($hasFmcgSector || str_contains($saleType, 'retail')));
 
         if ($isThirdSchedule && $retailPrice->isPositive()) {
             // Section 3(2)(a): Tax base is Printed Retail Price * Quantity
@@ -58,7 +66,7 @@ class InvoiceCalculator
         if ($isThirdSchedule && $furtherTax->isPositive()) {
             $furtherTax = BigDecimal::zero()->toScale(6);
         }
-        if ($businessActivity === 'retailer' && $furtherTax->isPositive()) {
+        if ($isRetailer && $furtherTax->isPositive()) {
             $furtherTax = BigDecimal::zero()->toScale(6);
         }
 
