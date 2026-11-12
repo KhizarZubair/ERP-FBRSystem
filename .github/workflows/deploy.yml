@@ -20,6 +20,17 @@ jobs:
         run: |
           composer install --no-dev --optimize-autoloader
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          
+      - name: Build React Frontend
+        run: |
+          cd react-erp-app
+          npm ci
+          npm run build
+
       - name: Upload to FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
