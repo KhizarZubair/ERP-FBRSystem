@@ -45,7 +45,7 @@ class FbrInvoiceService
 
         $profileFingerprint = hash('sha256', json_encode([
             $company->ntn_cnic, $company->name, $company->province, $company->address,
-            $company->business_activity, $company->sector,
+            $company->business_activity, $company->sector, $company->is_sales_tax_profile_retailer,
         ], JSON_THROW_ON_ERROR));
         $tokenFingerprint = hash_hmac('sha256', (string) $sandbox->token, (string) config('app.key'));
         $store = Cache::store(config('fbr.reference_cache_store'));

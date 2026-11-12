@@ -30,6 +30,7 @@ class CompanyResource extends JsonResource
             'fbr_environment' => $this->fbr_environment,
             'business_activity' => $this->business_activity ?? [],
             'sector' => $this->sector ?? [],
+            'is_sales_tax_profile_retailer' => (bool) $this->is_sales_tax_profile_retailer,
             'allowed_sandbox_scenarios' => app(FbrScenarioRegistry::class)->allowedCodesForCompany($this->resource),
             'role' => $this->pivot->role,
         ];

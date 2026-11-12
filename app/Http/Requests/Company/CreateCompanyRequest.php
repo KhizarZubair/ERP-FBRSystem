@@ -39,6 +39,7 @@ class CreateCompanyRequest extends FormRequest
             'business_activity.*' => ['required', 'string', 'distinct', Rule::in(config('fbr.business_activities'))],
             'sector' => ['sometimes', 'required', 'array', 'min:1'],
             'sector.*' => ['required', 'string', 'distinct', Rule::in(config('fbr.sectors'))],
+            'is_sales_tax_profile_retailer' => ['sometimes', 'boolean'],
         ];
     }
 

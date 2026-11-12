@@ -11,6 +11,7 @@ export function CompanyDetailsView({ company }: { company: CompanyDetails }) {
         ["Seller CNIC", sellerCnic, sellerNtn ? "Optional (NTN provided)" : "Required if NTN not provided", !sellerNtn],
         ["FBR Business Nature", company.business_activity.join(", "), "Required for FBR digital invoicing", true],
         ["FBR Business Sector", company.sector.join(", "), "Required for FBR digital invoicing", true],
+        ["FBR Sales Tax Profile", company.is_sales_tax_profile_retailer ? "Registered as Retailer" : "Not registered as Retailer", "Controls eligibility for SN026, SN027 and SN028"],
         ["Province", company.province, undefined, true],
         ["Registered address", company.address, undefined, true],
         ["Contact person", company.contact_person],

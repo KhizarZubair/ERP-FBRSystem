@@ -112,6 +112,46 @@ class FbrOfficialSection10MappingTest extends TestCase
         $this->assertSame(count($actual), count(array_unique($actual)));
     }
 
+
+    #[Test]
+    public function retailer_end_consumer_scenarios_require_sales_tax_profile_retailer_registration(): void
+    {
+        $registry = new FbrScenarioRegistry();
+        $company = new \App\Models\Company([
+            'business_activity' => ['Retailer'],
+            'sector' => ['Wholesale / Retails'],
+            'is_sales_tax_profile_retailer' => false,
+        ]);
+
+        $withoutRetailerRegistration = $registry->allowedCodesForCompany($company);
+        $this->assertContains('SN008', $withoutRetailerRegistration);
+        $this->assertNotContains('SN026', $withoutRetailerRegistration);
+        $this->assertNotContains('SN027', $withoutRetailerRegistration);
+        $this->assertNotContains('SN028', $withoutRetailerRegistration);
+
+        $company->is_sales_tax_profile_retailer = true;
+        $withRetailerRegistration = $registry->allowedCodesForCompany($company);
+        $this->assertContains('SN026', $withRetailerRegistration);
+        $this->assertContains('SN027', $withRetailerRegistration);
+        $this->assertContains('SN028', $withRetailerRegistration);
+    }
+
+    #[Test]
+    public function non_retailer_activities_cannot_use_retailer_end_consumer_scenarios_even_when_sector_mapping_includes_them(): void
+    {
+        $company = new \App\Models\Company([
+            'business_activity' => ['Distributor'],
+            'sector' => ['FMCG'],
+            'is_sales_tax_profile_retailer' => false,
+        ]);
+
+        $allowed = (new FbrScenarioRegistry())->allowedCodesForCompany($company);
+        $this->assertContains('SN008', $allowed);
+        $this->assertNotContains('SN026', $allowed);
+        $this->assertNotContains('SN027', $allowed);
+        $this->assertNotContains('SN028', $allowed);
+    }
+
     #[Test]
     public function company_manual_scenario_list_cannot_override_official_automatic_mapping(): void
     {

@@ -493,7 +493,16 @@ class FbrScenarioRegistry
      */
     public function allowedCodesForCompany(Company $company): array
     {
-        return $this->scenariosForSectorAndActivity($company->business_activity, $company->sector);
+        $scenarios = $this->scenariosForSectorAndActivity($company->business_activity, $company->sector);
+
+        // FBR DI API v1.12, Section 9 (page 46): SN026-SN028 are
+        // applicable only when the taxpayer is registered as a retailer
+        // in the Sales Tax Profile. Business activity/sector alone is not proof.
+        if ($company->is_sales_tax_profile_retailer !== true) {
+            $scenarios = array_values(array_diff($scenarios, ['SN026', 'SN027', 'SN028']));
+        }
+
+        return $scenarios;
     }
 
     /**

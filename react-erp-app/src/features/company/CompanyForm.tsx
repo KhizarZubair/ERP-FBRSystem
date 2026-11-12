@@ -12,12 +12,12 @@ export function CompanyForm({ company, onSaved, onCancel }: { company: CompanyDe
     const [errors, setErrors] = useState<Record<string, string[]>>({});
     const lock = useRef(false);
 
-    function change(key: Exclude<keyof CompanyDraft, "allowed_sandbox_scenarios" | "business_activity" | "sector">, value: string) {
+    function change(key: Exclude<keyof CompanyDraft, "allowed_sandbox_scenarios" | "business_activity" | "sector" | "is_sales_tax_profile_retailer">, value: string) {
         setDraft(current => ({ ...current, [key]: value, ...(key === "fbr_environment" ? { sandbox_token: "", production_token: "" } : {}) }));
         setErrors(current => ({ ...current, [key]: [] }));
     }
 
-    const field = (key: Exclude<keyof CompanyDraft, "allowed_sandbox_scenarios" | "business_activity" | "sector">) => ({
+    const field = (key: Exclude<keyof CompanyDraft, "allowed_sandbox_scenarios" | "business_activity" | "sector" | "is_sales_tax_profile_retailer">) => ({
         name: key,
         value: draft[key],
         onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => change(key, event.target.value),
@@ -63,6 +63,7 @@ export function CompanyForm({ company, onSaved, onCancel }: { company: CompanyDe
                 phone: draft.phone,
                 business_activity: draft.business_activity,
                 sector: draft.sector,
+                is_sales_tax_profile_retailer: draft.is_sales_tax_profile_retailer,
             });
             onSaved(response.data);
         } catch (error) {
@@ -98,6 +99,13 @@ export function CompanyForm({ company, onSaved, onCancel }: { company: CompanyDe
                         onChange={value => { setDraft(current => ({ ...current, sector: value })); setErrors(current => ({ ...current, sector: [] })); }}
                         error={errors.sector?.[0]}
                         hint="Select every sector applicable to this company."
+                    />
+                    <Input
+                        label="Registered as retailer in FBR Sales Tax Profile"
+                        type="checkbox"
+                        checked={draft.is_sales_tax_profile_retailer}
+                        onChange={event => setDraft(current => ({ ...current, is_sales_tax_profile_retailer: event.target.checked }))}
+                        hint="Enable only if FBR Sales Tax Profile officially shows Retailer. This controls scenarios SN026, SN027 and SN028."
                     />
                     <Input label="Contact person" maxLength={255} {...field("contact_person")} />
                     <Input label="Company email" required hint="Business contact email; this does not change your login email." type="email" maxLength={255} {...field("email")} />

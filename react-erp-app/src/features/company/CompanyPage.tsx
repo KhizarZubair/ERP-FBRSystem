@@ -34,6 +34,7 @@ function FirstCompanySetup({ onCreated }: { onCreated: () => Promise<void> }) {
     const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
     const [businessActivity, setBusinessActivity] = useState<string[]>([]);
     const [sector, setSector] = useState<string[]>([]);
+    const [isSalesTaxProfileRetailer, setIsSalesTaxProfileRetailer] = useState(false);
     return <>
         <PageHeader title="Company & FBR Setup" description="Complete your single company profile to start using the ERP." />
         <form onSubmit={async event => {
@@ -73,6 +74,7 @@ function FirstCompanySetup({ onCreated }: { onCreated: () => Promise<void> }) {
                     phone: value("phone"),
                     business_activity: businessActivity,
                     sector,
+                    is_sales_tax_profile_retailer: isSalesTaxProfileRetailer,
                 });
                 await onCreated();
             } catch (failure) {
@@ -89,6 +91,7 @@ function FirstCompanySetup({ onCreated }: { onCreated: () => Promise<void> }) {
                     <Select label="Province" name="province" required options={[{ value: "", label: "Select province" }, ...provinces]} error={fieldErrors.province?.[0]} />
                     <CheckboxGroup label="FBR Business Nature / Activity" required options={businessActivities} value={businessActivity} onChange={setBusinessActivity} error={fieldErrors.business_activity?.[0]} hint="Select all business activities registered for this company." />
                     <CheckboxGroup label="FBR Business Sector" required options={businessSectors} value={sector} onChange={setSector} error={fieldErrors.sector?.[0]} hint="Select every sector applicable to this company." />
+                    <Input label="Registered as retailer in FBR Sales Tax Profile" type="checkbox" checked={isSalesTaxProfileRetailer} onChange={event => setIsSalesTaxProfileRetailer(event.target.checked)} hint="Enable only if FBR Sales Tax Profile officially shows Retailer. This controls scenarios SN026, SN027 and SN028." />
                     <Input label="Company email" name="email" type="email" required maxLength={255} error={fieldErrors.email?.[0]} />
                     <Input label="Phone" name="phone" maxLength={30} error={fieldErrors.phone?.[0]} />
                     <Textarea label="Registered address" name="address" required maxLength={2000} error={fieldErrors.address?.[0]} />

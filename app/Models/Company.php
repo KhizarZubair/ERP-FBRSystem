@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use InvalidArgumentException;
 use RuntimeException;
 
-#[Fillable(['name', 'ntn_cnic', 'province', 'address', 'contact_person', 'email', 'phone', 'technical_contact', 'logo_path', 'invoice_series', 'currency', 'fbr_environment', 'business_activity', 'sector', 'allowed_sandbox_scenarios', 'is_active'])]
+#[Fillable(['name', 'ntn_cnic', 'province', 'address', 'contact_person', 'email', 'phone', 'technical_contact', 'logo_path', 'invoice_series', 'currency', 'fbr_environment', 'business_activity', 'sector', 'is_sales_tax_profile_retailer', 'allowed_sandbox_scenarios', 'is_active'])]
 class Company extends Model
 {
     protected static function booted(): void
@@ -31,6 +31,7 @@ class Company extends Model
             'sector' => 'array',
             'allowed_sandbox_scenarios' => 'array',
             'is_active' => 'boolean',
+            'is_sales_tax_profile_retailer' => 'boolean',
         ];
     }
 

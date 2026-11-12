@@ -24,6 +24,7 @@ class CompanyDetailsResource extends JsonResource
             'contact_person' => $this->contact_person, 'email' => $this->email, 'phone' => $this->phone,
             'invoice_series' => $this->invoice_series, 'currency' => $this->currency, 'fbr_environment' => $this->fbr_environment->value,
             'business_activity' => $this->business_activity ?? [], 'sector' => $this->sector ?? [],
+            'is_sales_tax_profile_retailer' => (bool) $this->is_sales_tax_profile_retailer,
             'allowed_sandbox_scenarios' => app(FbrScenarioRegistry::class)->allowedCodesForCompany($this->resource),
             'supported_scenarios' => config('fbr.supported_scenarios'),
             'business_activities' => config('fbr.business_activities'), 'sectors' => config('fbr.sectors'),

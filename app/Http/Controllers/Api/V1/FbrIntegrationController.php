@@ -49,7 +49,7 @@ class FbrIntegrationController extends Controller
 
     private function profileFingerprint(Company $company): string
     {
-        return hash('sha256', json_encode([$company->ntn_cnic, $company->province, $company->address, $company->business_activity, $company->sector], JSON_THROW_ON_ERROR));
+        return hash('sha256', json_encode([$company->ntn_cnic, $company->name, $company->province, $company->address, $company->business_activity, $company->sector, $company->is_sales_tax_profile_retailer], JSON_THROW_ON_ERROR));
     }
 
     private function tokenFingerprint(string $token): string

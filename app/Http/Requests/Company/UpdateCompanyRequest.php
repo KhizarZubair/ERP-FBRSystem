@@ -45,6 +45,7 @@ class UpdateCompanyRequest extends FormRequest
             'business_activity.*' => ['required', 'string', 'distinct', Rule::in(config('fbr.business_activities'))],
             'sector' => ['sometimes', 'required', 'array', 'min:1'],
             'sector.*' => ['required', 'string', 'distinct', Rule::in(config('fbr.sectors'))],
+            'is_sales_tax_profile_retailer' => ['sometimes', 'boolean'],
             'allowed_sandbox_scenarios' => ['sometimes', 'array'],
             'allowed_sandbox_scenarios.*' => ['required', 'string', 'distinct', Rule::in(array_keys(app(FbrScenarioRegistry::class)->definitions()))],
             'sandbox_token' => [Rule::prohibitedIf($this->input('fbr_environment') !== 'sandbox'), 'nullable', 'string', 'max:4096', 'regex:/^\\S+$/'],

@@ -34,7 +34,7 @@ class CompanyEndpointsTest extends TestCase
         return ['name' => 'Updated Seller', 'seller_ntn' => '0123456', 'seller_cnic' => '3520112345671', 'province' => 'Sindh', 'address' => 'Test address',
             'invoice_series' => 'INV', 'currency' => 'PKR', 'fbr_environment' => 'sandbox',
             'business_activity' => ['Manufacturer', 'Retailer'], 'sector' => ['All Other Sectors', 'Steel'],
-            'allowed_sandbox_scenarios' => ['SN001']];
+            'allowed_sandbox_scenarios' => ['SN001'], 'is_sales_tax_profile_retailer' => true];
     }
 
     public function test_owner_updates_profile_and_encrypted_credentials_without_exposing_token(): void
@@ -46,6 +46,7 @@ class CompanyEndpointsTest extends TestCase
         $this->putJson($url, [...$this->payload(), 'sandbox_token' => 'review-token-only', 'is_active' => false])->assertOk()->assertJsonPath('data.credentials.sandbox.configured', true)->assertJsonMissingPath('data.sandbox_token')->assertJsonMissingPath('data.credentials.sandbox.token');
         $this->assertSame(['Manufacturer', 'Retailer'], $company->fresh()->business_activity);
         $this->assertSame(['All Other Sectors', 'Steel'], $company->fresh()->sector);
+        $this->assertTrue($company->fresh()->is_sales_tax_profile_retailer);
         $integration = $company->fbrIntegrations()->where('environment', 'sandbox')->firstOrFail();
         $this->assertNotSame('review-token-only', $integration->getRawOriginal('token'));
         $this->assertSame('review-token-only', $integration->token);
@@ -53,7 +54,7 @@ class CompanyEndpointsTest extends TestCase
         $this->assertTrue($company->fresh()->is_active);
         $this->putJson($url, [...$this->payload(), 'sandbox_token' => ''])->assertOk();
         $this->assertSame('review-token-only', $integration->fresh()->token);
-        $this->getJson($url)->assertOk()->assertJsonPath('data.name', 'Updated Seller');
+        $this->getJson($url)->assertOk()->assertJsonPath('data.name', 'Updated Seller')->assertJsonPath('data.is_sales_tax_profile_retailer', true);
     }
 
     public function test_other_company_and_member_updates_are_denied(): void

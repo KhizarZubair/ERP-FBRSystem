@@ -155,7 +155,7 @@ class FbrInvoiceEndpointsTest extends TestCase
     {
         $profileFingerprint = hash('sha256', json_encode([
             $this->company->ntn_cnic, $this->company->name, $this->company->province, $this->company->address,
-            $this->company->business_activity, $this->company->sector,
+            $this->company->business_activity, $this->company->sector, ($this->company->is_sales_tax_profile_retailer ?? false),
         ], JSON_THROW_ON_ERROR));
         $tokenFingerprint = hash_hmac('sha256', 'dummy-sandbox', (string) config('app.key'));
         $scenarioIds = array_column(app(\App\Services\FbrScenarioRegistry::class)->forCompany($this->company), 'id');

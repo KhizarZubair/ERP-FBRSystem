@@ -136,6 +136,7 @@ class CompanyService
                 'companies.address', 'companies.contact_person', 'companies.email', 'companies.phone',
                 'companies.technical_contact', 'companies.invoice_series', 'companies.currency',
                 'companies.fbr_environment', 'companies.business_activity', 'companies.sector',
+                'companies.is_sales_tax_profile_retailer',
                 'companies.allowed_sandbox_scenarios',
             ])
             ->orderBy('companies.id')
@@ -184,7 +185,7 @@ class CompanyService
             $data['technical_contact'] = $sellerCnic;
             $fields = ['name', 'ntn_cnic', 'province', 'address', 'contact_person', 'email', 'phone',
                 'technical_contact', 'invoice_series', 'currency', 'fbr_environment', 'business_activity',
-                'sector', 'allowed_sandbox_scenarios'];
+                'sector', 'is_sales_tax_profile_retailer', 'allowed_sandbox_scenarios'];
             $company->fill(array_intersect_key($data, array_flip($fields)))->save();
             foreach ([$company->fbr_environment->value] as $environment) {
                 $token = $data[$environment.'_token'] ?? null;
