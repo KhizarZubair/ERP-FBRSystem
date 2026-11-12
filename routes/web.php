@@ -69,6 +69,7 @@ Route::prefix('api/v1/auth')->name('api.v1.auth.')->group(function (): void {
 Route::prefix('api/company')->middleware('auth:sanctum')->group(function (): void {
     Route::get('fbr/status', [FbrIntegrationController::class, 'status'])->name('api.company.fbr.status');
     Route::post('verify-fbr', [FbrIntegrationController::class, 'verifyFbr'])->middleware('throttle:6,1')->name('api.company.verify-fbr');
+    Route::post('sandbox-token', [FbrIntegrationController::class, 'saveSandboxToken'])->middleware('throttle:6,1')->name('api.company.sandbox-token');
     Route::post('run-sandbox-certification', [FbrIntegrationController::class, 'runSandboxCertification'])->middleware('throttle:3,1')->name('api.company.run-sandbox-certification');
     Route::post('production-token', [FbrIntegrationController::class, 'saveProductionToken'])->middleware('throttle:6,1')->name('api.company.production-token');
 });

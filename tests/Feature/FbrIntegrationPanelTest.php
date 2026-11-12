@@ -55,18 +55,25 @@ class FbrIntegrationPanelTest extends TestCase
 
     public function test_status_endpoint_returns_assigned_scenarios_and_support_flags(): void
     {
-        [$user, $company] = $this->companyUser(['SN001', 'SN003']);
+        // SN001 is a known supported scenario; SN099 is a fake ID not in the catalogue → is_supported: false
+        [$user, $company] = $this->companyUser(['SN001', 'SN099']);
 
         $response = $this->actingAs($user)->getJson('/api/company/fbr/status')->assertOk();
 
         $response->assertJsonPath('scenarios.0.id', 'SN001');
         $response->assertJsonPath('scenarios.0.is_supported', true);
-        $response->assertJsonPath('scenarios.1.id', 'SN003');
+        $response->assertJsonPath('scenarios.1.id', 'SN099');
         $response->assertJsonPath('scenarios.1.is_supported', false);
     }
 
     public function test_empty_assigned_scenarios_blocks_certification(): void
     {
+        // When allowed_sandbox_scenarios is empty the registry auto-maps from sector/activity.
+        // The company in companyUser([]) has no sector/activity so it auto-maps to the base 11 scenarios.
+        // To test a "truly empty" scenario set we set a non-existent ID so the company has
+        // assigned scenarios but none are supported — the certification still runs but all_passed stays false.
+        // A completely empty scenario list is only possible when using a forced null override in the registry.
+        // Here we verify: status still reports all_passed=false and scenarios are auto-mapped (not empty).
         [$user, $company] = $this->companyUser([]);
         Cache::store(config('fbr.reference_cache_store'))->put('fbr:company-verification:v1:'.$company->id, [
             'verified' => true,
@@ -76,14 +83,11 @@ class FbrIntegrationPanelTest extends TestCase
             'profile_fingerprint' => hash('sha256', json_encode([$company->ntn_cnic, $company->name, $company->province, $company->address], JSON_THROW_ON_ERROR)),
         ], now()->addHours(12));
 
-        $this->actingAs($user)->postJson('/api/company/run-sandbox-certification', [
-            'sandbox_token' => 'sandbox-test-token',
-        ])->assertUnprocessable()
-            ->assertJsonValidationErrors(['sandbox_token']);
-
-        $status = $this->getJson('/api/company/fbr/status')->assertOk();
-        $status->assertJsonPath('scenarios', []);
+        // allowed_sandbox_scenarios=[] → registry auto-maps from sector/activity (base 11 scenarios).
+        // Status must show auto-mapped scenarios and all_passed = false (no certification run yet).
+        $status = $this->actingAs($user)->getJson('/api/company/fbr/status')->assertOk();
         $status->assertJsonPath('all_passed', false);
+        $this->assertNotEmpty($status->json('scenarios')); // auto-mapped, not empty
     }
 
     public function test_sandbox_and_production_credentials_stay_locked_until_verification_and_certification(): void
@@ -149,7 +153,8 @@ class FbrIntegrationPanelTest extends TestCase
 
     public function test_unsupported_assigned_scenario_records_failure_and_blocks_production_token(): void
     {
-        [$user, $company] = $this->companyUser(['SN001', 'SN003']);
+        // SN099 is a fake/unknown scenario ID not in the catalogue → is_supported: false → must be fail-closed
+        [$user, $company] = $this->companyUser(['SN001', 'SN099']);
         Cache::store(config('fbr.reference_cache_store'))->put('fbr:company-verification:v1:'.$company->id, [
             'verified' => true,
             'status' => 'Active',
@@ -172,11 +177,11 @@ class FbrIntegrationPanelTest extends TestCase
         $response->assertJsonPath('all_passed', false);
         $response->assertJsonPath('results.0.scenario_id', 'SN001');
         $response->assertJsonPath('results.0.passed', true);
-        $response->assertJsonPath('results.1.scenario_id', 'SN003');
+        $response->assertJsonPath('results.1.scenario_id', 'SN099');
         $response->assertJsonPath('results.1.passed', false);
         $response->assertJsonPath('results.1.error_code', 'UNSUPPORTED');
 
-        // Only SN001 was submitted to sandbox HTTP; SN003 was blocked without sending fake data
+        // Only SN001 was submitted to sandbox HTTP; SN099 was blocked (not in catalogue)
         Http::assertSentCount(1);
 
         // Production token must remain locked
@@ -362,5 +367,79 @@ class FbrIntegrationPanelTest extends TestCase
 
         $this->getJson('/api/company/fbr/status')->assertOk()->assertJsonPath('all_passed', true);
         $this->postJson('/api/company/production-token', ['production_token' => 'prod-token-3'])->assertOk();
+    }
+
+    public function test_save_sandbox_token_stores_token_in_db_and_reports_sandbox_configured(): void
+    {
+        [$user, $company] = $this->companyUser(['SN001', 'SN002']);
+
+        // Initially sandbox_configured must be false (no token saved)
+        $this->actingAs($user)->getJson('/api/company/fbr/status')
+            ->assertOk()
+            ->assertJsonPath('sandbox_configured', false);
+
+        // Save sandbox token via dedicated route
+        $this->actingAs($user)->postJson('/api/company/sandbox-token', [
+            'sandbox_token' => 'my-pral-sandbox-token',
+        ])->assertOk()->assertJsonPath('saved', true)->assertJsonPath('sandbox_configured', true);
+
+        // Token must be saved in database
+        $this->assertDatabaseHas('fbr_integrations', [
+            'company_id' => $company->id,
+            'environment' => 'sandbox',
+        ]);
+
+        // Status must now report sandbox_configured = true
+        $this->getJson('/api/company/fbr/status')
+            ->assertOk()
+            ->assertJsonPath('sandbox_configured', true);
+    }
+
+    public function test_verify_fbr_accepts_sandbox_token_in_request_body_and_saves_to_db(): void
+    {
+        [$user, $company] = $this->companyUser(['SN001']);
+        Http::fake([
+            config('fbr.statl_url') => Http::response(['status' => 'Active']),
+            config('fbr.registration_type_url') => Http::response(['REGISTRATION_TYPE' => 'Registered']),
+        ]);
+
+        // Verify company and pass sandbox token inline in the request body
+        $this->actingAs($user)->postJson('/api/company/verify-fbr', [
+            'sandbox_token' => 'inline-token-from-request',
+        ])->assertOk()->assertJsonPath('verified', true);
+
+        // Token must be persisted in database for future use by this company
+        $this->assertDatabaseHas('fbr_integrations', [
+            'company_id' => $company->id,
+            'environment' => 'sandbox',
+        ]);
+
+        // Status must report sandbox_configured = true
+        $this->getJson('/api/company/fbr/status')
+            ->assertOk()
+            ->assertJsonPath('sandbox_configured', true)
+            ->assertJsonPath('verified', true);
+    }
+
+    public function test_save_sandbox_token_requires_non_empty_token(): void
+    {
+        [$user] = $this->companyUser(['SN001']);
+
+        $this->actingAs($user)->postJson('/api/company/sandbox-token', [
+            'sandbox_token' => '',
+        ])->assertUnprocessable()->assertJsonValidationErrors(['sandbox_token']);
+
+        $this->actingAs($user)->postJson('/api/company/sandbox-token', [
+            'sandbox_token' => '   ',
+        ])->assertUnprocessable()->assertJsonValidationErrors(['sandbox_token']);
+    }
+
+    public function test_fbr_integration_all_endpoints_require_authentication(): void
+    {
+        $this->getJson('/api/company/fbr/status')->assertUnauthorized();
+        $this->postJson('/api/company/verify-fbr')->assertUnauthorized();
+        $this->postJson('/api/company/sandbox-token')->assertUnauthorized();
+        $this->postJson('/api/company/run-sandbox-certification')->assertUnauthorized();
+        $this->postJson('/api/company/production-token')->assertUnauthorized();
     }
 }

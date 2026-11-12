@@ -36,16 +36,26 @@ export type FbrIntegrationStatus = {
     results: FbrScenarioResult[];
     all_passed: boolean;
     certified_token_fingerprint?: string | null;
+    sandbox_configured: boolean;
     production_configured: boolean;
 };
 
 export const fbrIntegrationApi = {
     status: () => api<FbrIntegrationStatus>("/api/company/fbr/status"),
-    verify: () => api<FbrVerification>("/api/company/verify-fbr", { method: "POST", body: JSON.stringify({}) }),
-    certify: (sandbox_token: string, scenario_id?: string) =>
+    verify: (sandbox_token?: string) =>
+        api<FbrVerification>("/api/company/verify-fbr", {
+            method: "POST",
+            body: JSON.stringify(sandbox_token ? { sandbox_token } : {}),
+        }),
+    saveSandboxToken: (sandbox_token: string) =>
+        api<{ saved: boolean; sandbox_configured: boolean }>("/api/company/sandbox-token", {
+            method: "POST",
+            body: JSON.stringify({ sandbox_token }),
+        }),
+    certify: (sandbox_token?: string, scenario_id?: string) =>
         api<{ all_passed: boolean; results: FbrScenarioResult[]; checked_at: string }>(
             "/api/company/run-sandbox-certification",
-            { method: "POST", body: JSON.stringify({ sandbox_token, ...(scenario_id ? { scenario_id } : {}) }) },
+            { method: "POST", body: JSON.stringify({ ...(sandbox_token ? { sandbox_token } : {}), ...(scenario_id ? { scenario_id } : {}) }) },
         ),
     saveProductionToken: (production_token: string) =>
         api<{ saved: boolean; production_configured: boolean }>("/api/company/production-token", {

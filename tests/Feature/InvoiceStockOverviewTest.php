@@ -61,7 +61,9 @@ class InvoiceStockOverviewTest extends TestCase
     /** @return array<string, mixed> */
     private function invoicePayload(): array
     {
-        return ['customer_id' => $this->buyer->id, 'invoice_date' => '2026-10-12', 'lines' => [
+        // scenario_id is required when company is in sandbox mode and has assigned scenarios.
+        // SN001 (Standard Rated Sale) is always in the auto-mapped base set for any company.
+        return ['customer_id' => $this->buyer->id, 'invoice_date' => '2026-10-12', 'scenario_id' => 'SN001', 'lines' => [
             ['item_id' => $this->item->id, 'quantity' => '2.500000', 'unit_price' => '10.123456', 'tax_rate_percent' => '18', 'discount' => '0.1'],
         ]];
     }

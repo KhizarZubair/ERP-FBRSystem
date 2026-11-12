@@ -64,6 +64,7 @@ class FbrIntegrationController extends Controller
         $company = $this->company($request);
         $verified = $this->stateStore()->get($this->verifiedKey($company), []);
         $certification = $this->currentCertification($company);
+        $sandbox = $company->fbrIntegrations()->where('environment', 'sandbox')->first();
         $production = $company->fbrIntegrations()->where('environment', 'production')->first();
         $profileFingerprint = $this->profileFingerprint($company);
         $verifiedCurrentProfile = is_array($verified)
@@ -94,6 +95,7 @@ class FbrIntegrationController extends Controller
             'results' => $certification['results'] ?? [],
             'all_passed' => $verifiedCurrentProfile && $certifiedCurrentProfile,
             'certified_token_fingerprint' => $certification['token_fingerprint'] ?? null,
+            'sandbox_configured' => $sandbox !== null && filled($sandbox->token),
             'production_configured' => $production !== null && filled($production->token),
         ])->header('Cache-Control', 'no-store, private');
     }
@@ -108,9 +110,18 @@ class FbrIntegrationController extends Controller
         }
         $this->stateStore()->forget($this->verifiedKey($company));
 
-        $verificationToken = (string) config('fbr.verification_token', '');
+        $tokenInput = trim((string) $request->input('sandbox_token', ''));
+        if ($tokenInput !== '') {
+            $integration = $company->fbrIntegrations()->firstOrNew(['environment' => 'sandbox']);
+            $integration->token = $tokenInput;
+            $integration->status = FbrIntegrationStatus::Configured;
+            $integration->verified_at = null;
+            $integration->save();
+        }
+
+        $verificationToken = (string) ($company->fbrIntegrations()->where('environment', 'sandbox')->value('token') ?? '');
         if ($verificationToken === '') {
-            $verificationToken = (string) ($company->fbrIntegrations()->where('environment', 'sandbox')->value('token') ?? '');
+            $verificationToken = (string) config('fbr.verification_token', '');
         }
         if ($verificationToken === '') {
             return response()->json(['verified' => false, 'message' => 'FBR taxpayer lookup requires an authorized API token. Configure FBR_VERIFICATION_TOKEN on the server or obtain a token through your approved integration setup.'], 503);
@@ -156,6 +167,22 @@ class FbrIntegrationController extends Controller
         }
     }
 
+    public function saveSandboxToken(Request $request): JsonResponse
+    {
+        $company = $this->company($request);
+        $data = $request->validate([
+            'sandbox_token' => ['required', 'string', 'max:4096', 'regex:/^\S+$/'],
+        ]);
+
+        $integration = $company->fbrIntegrations()->firstOrNew(['environment' => 'sandbox']);
+        $integration->token = trim($data['sandbox_token']);
+        $integration->status = FbrIntegrationStatus::Configured;
+        $integration->verified_at = null;
+        $integration->save();
+
+        return response()->json(['saved' => true, 'sandbox_configured' => true])->header('Cache-Control', 'no-store, private');
+    }
+
     public function runSandboxCertification(Request $request): JsonResponse
     {
         $company = $this->company($request);
@@ -172,10 +199,18 @@ class FbrIntegrationController extends Controller
         $assignedIds = array_column($assignedScenarios, 'id');
 
         $data = $request->validate([
-            'sandbox_token' => ['required', 'string', 'max:4096', 'regex:/^\S+$/'],
+            'sandbox_token' => ['nullable', 'string', 'max:4096', 'regex:/^\S+$/'],
             'scenario_id' => ['sometimes', 'string', Rule::in($assignedIds)],
         ]);
-        $token = trim($data['sandbox_token']);
+        $token = trim((string) ($data['sandbox_token'] ?? ''));
+        if ($token === '') {
+            $token = (string) ($company->fbrIntegrations()->where('environment', 'sandbox')->value('token') ?? '');
+        }
+        if ($token === '') {
+            throw ValidationException::withMessages([
+                'sandbox_token' => 'Enter the Sandbox Token first.',
+            ]);
+        }
         $integration = $company->fbrIntegrations()->firstOrNew(['environment' => 'sandbox']);
         $integration->token = $token;
         $integration->status = FbrIntegrationStatus::Configured;
