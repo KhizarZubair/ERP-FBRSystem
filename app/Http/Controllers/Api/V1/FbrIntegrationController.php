@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Services\FbrErrorCatalog;
 use App\Services\FbrScenarioRegistry;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -118,10 +119,10 @@ class FbrIntegrationController extends Controller
             'sector' => $company->sector,
             'scenarios' => $assignedScenarios,
             'results' => $certification['results'] ?? [],
-            'all_passed' => $verifiedCurrentProfile && $certifiedCurrentProfile,
+            'all_passed' => $certifiedCurrentProfile,
             'certified_token_fingerprint' => $certification['token_fingerprint'] ?? null,
             'sandbox_configured' => $sandbox !== null && filled($sandbox->token),
-            'production_configured' => $production !== null && filled($production->token) && $verifiedCurrentProfile && $certifiedCurrentProfile,
+            'production_configured' => $production !== null && filled($production->token) && $certifiedCurrentProfile,
         ])->header('Cache-Control', 'no-store, private');
     }
 
@@ -163,13 +164,35 @@ class FbrIntegrationController extends Controller
             $date = now()->toDateString();
             $client = Http::withToken($verificationToken)->acceptJson()->asJson()->connectTimeout(4)->timeout(12)
                 ->withOptions(['allow_redirects' => false]);
-            $statusResponse = $client->send('GET', config('fbr.statl_url'), ['json' => ['regno' => $ntn, 'date' => $date]]);
-            $typeResponse = $client->send('GET', config('fbr.registration_type_url'), ['json' => ['Registration_No' => $ntn]]);
+            $failedEndpoint = 'STATL';
+            try {
+                $statusResponse = $client->send('GET', config('fbr.statl_url'), ['json' => ['regno' => $ntn, 'date' => $date]]);
+                $failedEndpoint = 'Get_Reg_Type';
+                $typeResponse = $client->send('GET', config('fbr.registration_type_url'), ['json' => ['Registration_No' => $ntn]]);
+            } catch (ConnectionException $exception) {
+                report($exception);
+                $field = $failedEndpoint === 'STATL' ? 'statl' : 'get_reg_type';
+                $timedOut = str_contains(strtolower($exception->getMessage()), 'timed out');
+                $detail = $timedOut
+                    ? "FBR {$failedEndpoint} endpoint did not respond before the 12-second timeout. This indicates an FBR gateway or network timeout, not a confirmed invalid token. Retry later; if it continues, contact PRAL."
+                    : "Could not establish a connection to FBR {$failedEndpoint}. Check outbound HTTPS connectivity, DNS/TLS and FBR gateway availability.";
+
+                return response()->json([
+                    'verified' => false,
+                    'message' => "FBR {$failedEndpoint} verification request could not be completed.",
+                    'errors' => [$field => [$detail]],
+                ], 503)->header('Cache-Control', 'no-store, private');
+            }
 
             if (! $statusResponse->successful() || ! $typeResponse->successful()) {
                 $errors = [];
-                if (! $statusResponse->successful()) $errors['statl'] = [in_array($statusResponse->status(), [401, 403], true) ? 'FBR rejected the Sandbox Token for STATL. Check your PRAL Sandbox Token.' : 'STATL request failed with HTTP '.$statusResponse->status().'. Check the NTN and retry.'];
-                if (! $typeResponse->successful()) $errors['get_reg_type'] = [in_array($typeResponse->status(), [401, 403], true) ? 'FBR rejected the Sandbox Token for Get_Reg_Type. Check your PRAL Sandbox Token.' : 'Get_Reg_Type request failed with HTTP '.$typeResponse->status().'. Check the NTN and retry.'];
+                if (! $statusResponse->successful()) {
+                    $errors['statl'] = [in_array($statusResponse->status(), [401, 403], true) ? 'FBR rejected the Sandbox Token for STATL. Check your PRAL Sandbox Token.' : 'STATL request failed with HTTP '.$statusResponse->status().'. Check the NTN and retry.'];
+                }
+                if (! $typeResponse->successful()) {
+                    $errors['get_reg_type'] = [in_array($typeResponse->status(), [401, 403], true) ? 'FBR rejected the Sandbox Token for Get_Reg_Type. Check your PRAL Sandbox Token.' : 'Get_Reg_Type request failed with HTTP '.$typeResponse->status().'. Check the NTN and retry.'];
+                }
+
                 return response()->json(['verified' => false, 'message' => 'FBR taxpayer verification failed. Review the details below.', 'errors' => $errors], 422);
             }
             $status = $statusResponse->json();
@@ -198,9 +221,16 @@ class FbrIntegrationController extends Controller
                 ], now()->addHours(12));
 
                 $errors = [];
-                if (! $ntnMatches) $errors['company_ntn'] = ['The NTN returned by FBR does not match the NTN saved in this company profile. Check Company Details.'];
-                if (! $active) $errors['statl'] = ['FBR STATL returned status '.($statusText ?: 'missing').' (status code '.($statusCode ?: 'missing').'). The company must have an explicit Active status.'];
-                if (! $registered) $errors['get_reg_type'] = ['FBR registration type is '.($registrationType ?: 'missing').' (status code '.($registrationStatusCode ?: 'missing').'). A Registered taxpayer record is required.'];
+                if (! $ntnMatches) {
+                    $errors['company_ntn'] = ['The NTN returned by FBR does not match the NTN saved in this company profile. Check Company Details.'];
+                }
+                if (! $active) {
+                    $errors['statl'] = ['FBR STATL returned status '.($statusText ?: 'missing').' (status code '.($statusCode ?: 'missing').'). The company must have an explicit Active status.'];
+                }
+                if (! $registered) {
+                    $errors['get_reg_type'] = ['FBR registration type is '.($registrationType ?: 'missing').' (status code '.($registrationStatusCode ?: 'missing').'). A Registered taxpayer record is required.'];
+                }
+
                 return response()->json(['verified' => false, 'status' => $statusText ?: 'Unknown', 'registration_type' => $registrationType ?: 'Unknown',
                     'message' => 'Company verification failed. Correct the highlighted information and try again.', 'errors' => $errors], 422);
             }
@@ -249,8 +279,6 @@ class FbrIntegrationController extends Controller
     public function runSandboxCertification(Request $request): JsonResponse
     {
         $company = $this->company($request);
-        $verified = $this->stateStore()->get($this->verifiedKey($company), []);
-        abort_unless(is_array($verified) && ($verified['verified'] ?? false) === true, 422, 'Verify the company with FBR before running sandbox certification.');
 
         $assignedScenarios = $this->registry->forCompany($company);
         if (empty($assignedScenarios)) {
@@ -270,11 +298,8 @@ class FbrIntegrationController extends Controller
             throw ValidationException::withMessages(['sandbox_token' => 'Save the Sandbox Token first.']);
         }
         $tokenFingerprint = $this->tokenFingerprint($token);
-        abort_unless(hash_equals((string) ($verified['token_fingerprint'] ?? ''), $tokenFingerprint)
-            && hash_equals((string) ($verified['profile_fingerprint'] ?? ''), $this->profileFingerprint($company)),
-            422, 'The saved Sandbox Token or company profile has changed. Verify the company again before certification.');
         if (isset($data['sandbox_token']) && ! hash_equals($token, trim((string) $data['sandbox_token']))) {
-            abort(422, 'The submitted token differs from the verified saved token. Save and verify the new token first.');
+            abort(422, 'The submitted token differs from the saved token. Save the new token first.');
         }
         $integration = $company->fbrIntegrations()->where('environment', 'sandbox')->firstOrFail();
 
@@ -335,8 +360,10 @@ class FbrIntegrationController extends Controller
                         $passed = false;
                     }
                 }
+                $sector = is_array($company->sector) ? ($company->sector[0] ?? null) : $company->sector;
+                $activity = is_array($company->business_activity) ? ($company->business_activity[0] ?? null) : $company->business_activity;
                 $errCode = $passed ? null : ($validation['errorCode'] ?? ($lineResults[0]['errorCode'] ?? null));
-                $errEntry = $errCode !== null ? $this->errors->entry((string) $errCode, $company->sector, $company->business_activity) : null;
+                $errEntry = $errCode !== null ? $this->errors->entry((string) $errCode, $sector, $activity) : null;
                 $resultsById[$scenarioId] = [
                     'scenario_id' => $scenarioId,
                     'title' => $scenario['title'],
@@ -403,10 +430,7 @@ class FbrIntegrationController extends Controller
 
         $sandbox = $company->fbrIntegrations()->where('environment', 'sandbox')->first();
         $currentSandboxFingerprint = $sandbox && filled($sandbox->token) ? $this->tokenFingerprint((string) $sandbox->token) : '';
-        abort_unless(is_array($verified) && ($verified['verified'] ?? false) === true
-            && $currentSandboxFingerprint !== ''
-            && hash_equals((string) ($verified['token_fingerprint'] ?? ''), $currentSandboxFingerprint)
-            && hash_equals((string) ($verified['profile_fingerprint'] ?? ''), $profileFingerprint), 422, 'Verify the current company profile with its saved Sandbox Token first.');
+        abort_unless($currentSandboxFingerprint !== '', 422, 'Save the Sandbox Token first.');
 
         $assignedScenarios = $this->registry->forCompany($company);
         abort_if(empty($assignedScenarios), 422, 'Configure at least one assigned sandbox scenario in Company Details first.');

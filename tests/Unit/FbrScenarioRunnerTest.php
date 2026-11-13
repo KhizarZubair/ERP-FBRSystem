@@ -154,10 +154,10 @@ class FbrScenarioRunnerTest extends TestCase
         $payload = $this->registry->buildCertificationPayload($company, 'SN006');
 
         $this->assertSame('SN006', $payload['scenarioId']);
-        $this->assertSame('0%', $payload['items'][0]['rate']);
+        $this->assertSame('Exempt', $payload['items'][0]['rate']);
         $this->assertSame('Exempt Goods', $payload['items'][0]['saleType']);
-        $this->assertSame('Sixth Schedule, Table-1', $payload['items'][0]['sroScheduleNo']);
-        $this->assertSame('Item 1', $payload['items'][0]['sroItemSerialNo']);
+        $this->assertSame('6th Schd Table I', $payload['items'][0]['sroScheduleNo']);
+        $this->assertSame('100', $payload['items'][0]['sroItemSerialNo']);
         $this->assertEquals(0.0, $payload['items'][0]['salesTaxApplicable']);
     }
 

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Services\CompanyService;
 use App\Services\FbrInvoiceService;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -110,6 +111,23 @@ class FbrIntegrationPanelTest extends TestCase
         $this->assertSame('company-sandbox-secret', $integration->token);
         $this->assertDatabaseMissing('fbr_integrations', ['company_id' => $company->id, 'token' => 'company-sandbox-secret']);
         Http::assertSent(fn ($request) => $request->hasHeader('Authorization', 'Bearer company-sandbox-secret'));
+    }
+
+    public function test_verification_identifies_the_fbr_endpoint_that_times_out(): void
+    {
+        [$user] = $this->companyUser();
+        Http::fake([
+            config('fbr.statl_url') => Http::response(['status code' => '00', 'status' => 'Active']),
+            config('fbr.registration_type_url') => function () {
+                throw new ConnectionException('cURL error 28: Operation timed out after 12002 milliseconds');
+            },
+        ]);
+
+        $this->actingAs($user)->postJson('/api/company/sandbox-token', ['sandbox_token' => 'sandbox-test-token'])->assertOk();
+        $this->postJson('/api/company/verify-fbr')
+            ->assertStatus(503)
+            ->assertJsonPath('message', 'FBR Get_Reg_Type verification request could not be completed.')
+            ->assertJsonPath('errors.get_reg_type.0', 'FBR Get_Reg_Type endpoint did not respond before the 12-second timeout. This indicates an FBR gateway or network timeout, not a confirmed invalid token. Retry later; if it continues, contact PRAL.');
     }
 
     public function test_certification_rejects_a_token_different_from_the_verified_saved_token(): void

@@ -67,8 +67,9 @@ class FbrScenarioRegistry
                 'sale_type' => 'Goods at Reduced Rate',
                 'buyer_type' => 'Registered',
                 'rate' => '1%',
-                'sro_schedule_no' => 'Eighth Schedule, Table-1',
-                'sro_item_serial_no' => 'Item 1',
+                'sro_schedule_no' => 'EIGHTH SCHEDULE Table 1',
+                'sro_item_serial_no' => '70',
+                'extra_tax' => '',
                 'further_tax' => 0.0,
                 'is_supported' => true,
             ],
@@ -78,9 +79,10 @@ class FbrScenarioRegistry
                 'description' => 'Supplies exempt from sales tax under 6th Schedule to Sales Tax Act',
                 'sale_type' => 'Exempt Goods',
                 'buyer_type' => 'Registered',
-                'rate' => '0%',
-                'sro_schedule_no' => 'Sixth Schedule, Table-1',
-                'sro_item_serial_no' => 'Item 1',
+                'rate' => 'Exempt',
+                'hs_code' => '4901.1000',
+                'sro_schedule_no' => '6th Schd Table I',
+                'sro_item_serial_no' => '100',
                 'further_tax' => 0.0,
                 'is_supported' => true,
             ],
@@ -91,6 +93,9 @@ class FbrScenarioRegistry
                 'sale_type' => 'Goods at zero-rate',
                 'buyer_type' => 'Registered',
                 'rate' => '0%',
+                'sro_schedule_no' => 'FIFTH SCHEDULE',
+                'sro_item_serial_no' => '1(i)',
+                'retail_price' => 1000.0,
                 'further_tax' => 0.0,
                 'is_supported' => true,
             ],
@@ -184,7 +189,9 @@ class FbrScenarioRegistry
                 'sale_type' => 'Mobile Phones',
                 'buyer_type' => 'Registered',
                 'rate' => '18%',
-                'hs_code' => '8517.1219',
+                'hs_code' => '8517.1490',
+                'sro_schedule_no' => 'NINTH SCHEDULE',
+                'sro_item_serial_no' => '1(A)',
                 'uom' => 'Numbers, pieces, units',
                 'further_tax' => 0.0,
                 'is_supported' => true,
@@ -193,9 +200,10 @@ class FbrScenarioRegistry
                 'id' => 'SN016',
                 'title' => 'Processing / Conversion of Goods',
                 'description' => 'Processing, fabrication or conversion of goods for another entity',
-                'sale_type' => 'Processing/ Conversion of Goods',
+                'sale_type' => 'Processing/Conversion of Goods',
                 'buyer_type' => 'Registered',
                 'rate' => '18%',
+                'retail_price' => 1000.0,
                 'further_tax' => 0.0,
                 'is_supported' => true,
             ],
@@ -205,8 +213,10 @@ class FbrScenarioRegistry
                 'description' => 'Federal Excise Duty in Sales Tax mode (Beverages, tobacco, lubricants)',
                 'sale_type' => 'Goods (FED in ST Mode)',
                 'buyer_type' => 'Registered',
-                'rate' => '18%',
-                'fed_payable' => 50.0,
+                'rate' => '18% and Rs. 80 per Liter',
+                'hs_code' => '2710.1240',
+                'uom' => 'Liter',
+                'fed_payable' => 0.0,
                 'further_tax' => 0.0,
                 'is_supported' => true,
             ],
@@ -226,9 +236,11 @@ class FbrScenarioRegistry
                 'id' => 'SN019',
                 'title' => 'Provincial Sales Tax on services',
                 'description' => 'Services subject to Provincial Revenue Authority sales tax (PRA/SRB/KPRA/BRA)',
-                'sale_type' => 'Services',
+                'sale_type' => ' Services ',
                 'buyer_type' => 'Registered',
-                'rate' => '13%',
+                'rate' => '15%',
+                'sro_schedule_no' => 'ICTO TABLE I',
+                'sro_item_serial_no' => '10',
                 'hs_code' => '9801.0000',
                 'uom' => 'Numbers, pieces, units',
                 'further_tax' => 0.0,
@@ -252,9 +264,9 @@ class FbrScenarioRegistry
                 'description' => 'Cement and pre-cast concrete block manufacturing sector supply',
                 'sale_type' => 'Cement /Concrete Block',
                 'buyer_type' => 'Registered',
-                'rate' => '18%',
+                'rate' => 'Rs.2',
                 'hs_code' => '2523.2900',
-                'uom' => 'Metric Ton',
+                'uom' => 'KG',
                 'further_tax' => 0.0,
                 'is_supported' => true,
             ],
@@ -264,7 +276,9 @@ class FbrScenarioRegistry
                 'description' => 'Potassium Chlorate chemical supply under fixed statutory duty',
                 'sale_type' => 'Potassium Chlorate',
                 'buyer_type' => 'Registered',
-                'rate' => '18%',
+                'rate' => '18% along with rupees 60 per kilogram',
+                'sro_schedule_no' => 'EIGHTH SCHEDULE Table 1',
+                'sro_item_serial_no' => '56',
                 'hs_code' => '2829.1910',
                 'uom' => 'KG',
                 'further_tax' => 0.0,
@@ -286,11 +300,11 @@ class FbrScenarioRegistry
                 'id' => 'SN024',
                 'title' => 'Goods listed in SRO 297(I)/2023',
                 'description' => 'Special goods covered under statutory SRO 297(I)/2023',
-                'sale_type' => 'Goods as per SRO.297(I)/2023',
+                'sale_type' => 'Goods as per SRO.297(|)/2023',
                 'buyer_type' => 'Registered',
-                'rate' => '18%',
-                'sro_schedule_no' => 'SRO 297(I)/2023',
-                'sro_item_serial_no' => 'Serial 1',
+                'rate' => '25%',
+                'sro_schedule_no' => '297(I)/2023-Table-I',
+                'sro_item_serial_no' => '12',
                 'further_tax' => 0.0,
                 'is_supported' => true,
             ],
@@ -545,28 +559,47 @@ class FbrScenarioRegistry
         $def = $definitions[$scenarioId];
         $quantity = 1.0;
         $unitPrice = 1000.0;
-        $ratePercent = (float) str_replace('%', '', $def['rate'] ?? '18%');
+        $ratePercent = (float) str_replace(['%', 'Rs.'], '', $def['rate'] ?? '18%');
         $retailPrice = (float) ($def['retail_price'] ?? 0.0);
         $furtherTax = (float) ($def['further_tax'] ?? 0.0);
-        $extraTax = (float) ($def['extra_tax'] ?? 0.0);
+        $extraTax = isset($def['extra_tax']) ? $def['extra_tax'] : 0.0;
         $fedPayable = (float) ($def['fed_payable'] ?? 0.0);
         $sroScheduleNo = $def['sro_schedule_no'] ?? '';
         $sroItemSerialNo = $def['sro_item_serial_no'] ?? '';
         $saleType = $def['sale_type'];
 
         // Tax base calculation according to Sales Tax Act Section 3(2)(a)
-        if ($retailPrice > 0) {
+        if ($scenarioId === 'SN017') {
+            // Goods (FED in ST Mode): 18% and Rs. 80 per Liter
+            // PRAL formula: ((value + 80 * qty) * 0.18) + (80 * qty)
+            $unitPrice = 100.0;
+            $taxBase = $quantity * $unitPrice;
+            $salesTaxApplicable = round((($taxBase + (80.0 * $quantity)) * 0.18) + (80.0 * $quantity), 2);
+        } elseif ($scenarioId === 'SN022') {
+            // Potassium Chlorate: 18% along with rupees 60 per kilogram
+            $taxBase = $quantity * $unitPrice;
+            $salesTaxApplicable = round(($taxBase * 0.18) + ($quantity * 60.0), 2);
+            $retailPrice = 1000.0;
+        } elseif ($retailPrice > 0) {
             $taxBase = $quantity * $retailPrice;
             $salesTaxApplicable = round($taxBase * ($ratePercent / 100), 2);
+        } elseif ($scenarioId === 'SN021') {
+            // Cement fixed statutory rate (Rs.2 per KG)
+            $taxBase = $quantity * $unitPrice;
+            $salesTaxApplicable = round($quantity * 2.0, 2);
+        } elseif ($def['rate'] === 'Exempt') {
+            $taxBase = $quantity * $unitPrice;
+            $salesTaxApplicable = 0.0;
         } else {
             $taxBase = $quantity * $unitPrice;
             $salesTaxApplicable = round($taxBase * ($ratePercent / 100), 2);
         }
 
-        $totalValues = $taxBase + $salesTaxApplicable + $furtherTax + $extraTax + $fedPayable;
+        $numericExtra = is_numeric($extraTax) ? (float) $extraTax : 0.0;
+        $totalValues = $taxBase + $salesTaxApplicable + $furtherTax + $numericExtra + $fedPayable;
 
-        $buyerNTN = $def['buyer_type'] === 'Registered' ? '1000000000000' : '';
-        $buyerName = $def['buyer_type'] === 'Registered' ? 'FERTILIZER MANUFAC IRS NEW' : 'End Consumer / Unregistered Buyer';
+        $buyerNTN = $def['buyer_type'] === 'Registered' ? '0711153' : '';
+        $buyerName = $def['buyer_type'] === 'Registered' ? 'PRAL Registered Test Buyer' : 'End Consumer / Unregistered Buyer';
 
         return [
             'invoiceType' => 'Sale Invoice',

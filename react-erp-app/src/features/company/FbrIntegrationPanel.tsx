@@ -11,14 +11,16 @@ export function FbrIntegrationPanel() {
     const [sandboxToken, setSandboxToken] = useState("");
     const [productionToken, setProductionToken] = useState("");
     const [loadingStatus, setLoadingStatus] = useState(true);
+    const [savingSandbox, setSavingSandbox] = useState(false);
     const [verifying, setVerifying] = useState(false);
-     const [savingProduction, setSavingProduction] = useState(false);
+    const [savingProduction, setSavingProduction] = useState(false);
     const [running, setRunning] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
     const [runState, setRunState] = useState<RunState>({});
     const [results, setResults] = useState<FbrScenarioResult[]>([]);
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
     const [error, setError] = useState("");
+    const [verificationError, setVerificationError] = useState("");
     const [notice, setNotice] = useState("");
 
     async function reloadStatus() {
@@ -35,6 +37,7 @@ export function FbrIntegrationPanel() {
 
     const verified = status?.verified === true;
     const allPassed = status?.all_passed === true;
+    const isSandboxConfigured = status?.sandbox_configured === true;
     const assignedScenarios: FbrAssignedScenario[] = status?.scenarios || [];
     const hasAssignedScenarios = assignedScenarios.length > 0;
 
@@ -47,33 +50,62 @@ export function FbrIntegrationPanel() {
         result => !result.passed && assignedScenarios.find(s => s.id === result.scenario_id)?.is_supported !== true
     );
 
-    async function verifyCompany() {
-        if (!sandboxToken.trim() && !status?.sandbox_configured) {
-            setError("Please enter the FBR Sandbox Token first.");
+    async function handleSaveSandboxToken() {
+        if (!sandboxToken.trim()) {
+            setError("Please enter the FBR Sandbox Token to save.");
             return;
         }
-        setVerifying(true); setError(""); setNotice("");
+        setSavingSandbox(true);
+        setError("");
+        setNotice("");
+        try {
+            await fbrIntegrationApi.saveSandboxToken(sandboxToken.trim());
+            setSandboxToken("");
+            setNotice("PRAL Sandbox Token saved securely in database.");
+            await reloadStatus();
+        } catch (failure) {
+            setError(failure instanceof Error ? failure.message : "Could not save Sandbox Token.");
+        } finally {
+            setSavingSandbox(false);
+        }
+    }
+
+    async function verifyCompany() {
+        if (!isSandboxConfigured && !sandboxToken.trim()) {
+            setError("Please save the FBR Sandbox Token first.");
+            return;
+        }
+        setVerifying(true);
+        setError("");
+        setVerificationError("");
+        setNotice("");
         try {
             if (sandboxToken.trim()) {
                 await fbrIntegrationApi.saveSandboxToken(sandboxToken.trim());
+                setSandboxToken("");
             }
             const result = await fbrIntegrationApi.verify();
             setStatus(current => current ? { ...current, verified: result.verified, verification: result, sandbox_configured: true } : null);
-            if (!result.verified) setError(result.message || "FBR did not verify this company.");
-            else setNotice("Company taxpayer record verified with FBR.");
+            if (!result.verified) {
+                setVerificationError(result.message || "FBR did not verify this company.");
+            } else {
+                setNotice("Company taxpayer record verified with FBR.");
+            }
             await reloadStatus();
         } catch (failure) {
             const details = failure && typeof failure === "object" && "errors" in failure
                 ? Object.entries((failure as { errors: Record<string, string[]> }).errors).flatMap(([field, messages]) => messages.map(message => `${field}: ${message}`))
                 : [];
-            setError([failure instanceof Error ? failure.message : "FBR verification failed.", ...details].join("\n"));
+            setVerificationError([failure instanceof Error ? failure.message : "FBR verification failed.", ...details].join("\n"));
             await reloadStatus();
-        } finally { setVerifying(false); }
+        } finally {
+            setVerifying(false);
+        }
     }
 
-     async function runScenarios(ids?: string[]) {
-        if (!sandboxToken.trim() && !status?.sandbox_configured) {
-            setError("Enter the Sandbox Token first.");
+    async function runScenarios(ids?: string[]) {
+        if (!isSandboxConfigured && !sandboxToken.trim()) {
+            setError("Save the Sandbox Token first.");
             return;
         }
         if (!hasAssignedScenarios) {
@@ -81,12 +113,14 @@ export function FbrIntegrationPanel() {
             return;
         }
 
-        // Never submit unsupported scenarios to the FBR API
         const candidateIds = ids && ids.length > 0 ? ids : assignedScenarios.map(s => s.id);
         const targetIds = candidateIds.filter(id => assignedScenarios.find(s => s.id === id)?.is_supported === true);
         const unsupportedAssigned = assignedScenarios.filter(s => !s.is_supported);
 
-        setRunning(true); setError(""); setNotice(""); setModalOpen(true);
+        setRunning(true);
+        setError("");
+        setNotice("");
+        setModalOpen(true);
         const nextState: RunState = {};
         assignedScenarios.forEach(s => {
             if (!s.is_supported) {
@@ -99,7 +133,6 @@ export function FbrIntegrationPanel() {
         });
         setRunState(nextState);
 
-        // Pre-populate or maintain unsupported records in results with clear fail-closed status
         if (unsupportedAssigned.length > 0) {
             setResults(current => {
                 const updated = [...current];
@@ -124,14 +157,10 @@ export function FbrIntegrationPanel() {
         try {
             if (sandboxToken.trim()) {
                 await fbrIntegrationApi.saveSandboxToken(sandboxToken.trim());
-                const verification = await fbrIntegrationApi.verify();
-                if (!verification.verified) {
-                    throw new Error(verification.message || "FBR company verification failed. Certification is locked.");
-                }
+                setSandboxToken("");
             }
             const isFullRun = !ids || ids.length === 0 || targetIds.length === assignedScenarios.filter(s => s.is_supported).length;
             if (isFullRun) {
-                // Execute complete suite in one atomic certification attempt using the saved, verified token.
                 const response = await fbrIntegrationApi.certify(undefined);
                 setResults(response.results || []);
                 const updatedState: RunState = { ...nextState };
@@ -140,7 +169,6 @@ export function FbrIntegrationPanel() {
                 });
                 setRunState(updatedState);
             } else {
-                // Targeted single scenario check
                 for (const id of targetIds) {
                     setRunState(current => ({ ...current, [id]: "checking" }));
                     const response = await fbrIntegrationApi.certify(undefined, id);
@@ -161,7 +189,9 @@ export function FbrIntegrationPanel() {
             });
             setError(failure instanceof Error ? failure.message : "Sandbox certification could not be completed.");
             await reloadStatus();
-        } finally { setRunning(false); }
+        } finally {
+            setRunning(false);
+        }
     }
 
     async function saveProduction() {
@@ -179,91 +209,113 @@ export function FbrIntegrationPanel() {
 
     return <>
         <section className="fbr-integration-stack">
-            <Card title="FBR Sandbox Credentials & Taxpayer Verification">
+            {/* Sandbox Credentials */}
+            <Card title="FBR PRAL Sandbox Credentials">
                 <div className="fbr-status-row">
                     <div>
-                        <h3>FBR Taxpayer Registration</h3>
-                        <p className="muted">Enter your PRAL Sandbox Token and verify your company's active taxpayer registration with FBR.</p>
+                        <h3>Sandbox Credentials Configuration</h3>
+                        <p className="muted">Enter the PRAL Sandbox Security Token provided in your PRAL Sandbox environment. Saved securely in database for multi-client isolation.</p>
                     </div>
                     <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
-                        <Badge tone={status?.sandbox_configured ? "success" : "neutral"}>
-                            {status?.sandbox_configured ? "Token Saved in DB" : "Token Not Saved"}
-                        </Badge>
-                        <Badge tone={verified ? "success" : status && !verified ? "danger" : "neutral"}>
-                            {loadingStatus ? "Checking status…" : verified ? "Verified with FBR" : "Unverified"}
+                        <Badge tone={isSandboxConfigured ? "success" : "neutral"}>
+                            {isSandboxConfigured ? "Token Saved in DB" : "Token Not Saved"}
                         </Badge>
                     </div>
                 </div>
 
                 <div style={{ marginTop: "16px" }}>
                     <PasswordField
-                        label="FBR Sandbox Token"
+                        label="PRAL Sandbox Token (Sandbox & Validate APIs)"
                         autoComplete="off"
                         value={sandboxToken}
                         onChange={event => setSandboxToken(event.target.value)}
-                        placeholder="Enter PRAL Sandbox Token"
-                        hint="PRAL sandbox Bearer token for this company. Stored securely in database (not in .env) for multi-tenant isolation."
+                        placeholder={isSandboxConfigured ? "•••••••••••••••• (Configured in DB)" : "Enter PRAL Sandbox Token (e.g. 72535495-d1e4-...)"}
+                        hint="Covers both postinvoicedata_sb and validateinvoicedata_sb endpoints. Enter a new token to update."
                     />
                 </div>
 
-                {verified && status?.verification && <div style={{ marginTop: "12px" }}>
-                    <Notice tone="success">
-                        <strong>Company verified with FBR.</strong>
-                        <ul style={{ margin: "8px 0 0", paddingLeft: "20px" }}>
-                            <li>Company NTN: {status.verification.ntn_cnic || "Matched"}</li>
-                            <li>STATL status: {status.verification.status || "Unknown"} (code: {status.verification.statl_status_code || "—"})</li>
-                            <li>Get_Reg_Type: {status.verification.registration_type || "Registered"}</li>
-                        </ul>
-                        {status.verification.checked_at ? <p>Checked {new Date(status.verification.checked_at).toLocaleString()}</p> : null}
-                    </Notice>
-                </div>}
-
-                <div className="fbr-panel-actions" style={{ gap: "10px" }}>
+                <div className="fbr-panel-actions" style={{ marginTop: "14px", gap: "10px" }}>
                     <Button
-                        onClick={verifyCompany}
-                        disabled={verifying || loadingStatus || (!sandboxToken.trim() && !status?.sandbox_configured)}
+                        onClick={handleSaveSandboxToken}
+                        disabled={savingSandbox || loadingStatus || !sandboxToken.trim()}
                     >
-                        {verifying ? "Verifying with FBR…" : verified ? "Re-verify with FBR" : "Save & Verify Company with FBR"}
+                        {savingSandbox ? "Saving Token…" : isSandboxConfigured ? "Update Sandbox Token" : "Save Sandbox Token to DB"}
                     </Button>
                 </div>
             </Card>
 
-            <div className={verified ? "" : "fbr-locked-wrap"}>
-                {!verified && (
+            {/* Sandbox Testing & Verification */}
+            <div className={isSandboxConfigured ? "" : "fbr-locked-wrap"}>
+                {!isSandboxConfigured && (
                     <div className="fbr-lock-overlay" role="status">
                         <span aria-hidden="true">🔒</span>
-                        <strong>Sandbox Testing Locked</strong>
-                        <span>Save your Sandbox Token and verify your company with FBR to unlock sandbox scenario testing.</span>
+                        <strong>Sandbox Testing & Verification Locked</strong>
+                        <span>Save your PRAL Sandbox Token above to unlock testing & verification.</span>
                     </div>
                 )}
-                <Card title="Phase 2 · Sector-Driven Sandbox Scenarios (SN001–SN028)" className={!verified ? "fbr-locked-card" : ""}>
-                    <div style={{ marginBottom: "1rem", padding: "0.75rem 1rem", background: "var(--color-surface-subtle, #f8fafc)", borderRadius: "8px", border: "1px solid var(--border-color, #e2e8f0)" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
-                            <div>
-                                <strong style={{ fontSize: "0.95rem" }}>FBR Sector Testing Suite:</strong>
-                                <span style={{ marginLeft: "0.5rem" }}>
-                                    {status?.sector || "All Other Sectors"} · {status?.business_activity || "General"}
-                                </span>
-                            </div>
+                <Card title="FBR Verification & Automated Sandbox Certification" className={!isSandboxConfigured ? "fbr-locked-card" : ""}>
+                    <div className="fbr-status-row" style={{ marginBottom: "1rem" }}>
+                        <div>
+                            <strong style={{ fontSize: "0.95rem" }}>FBR Sector Testing Suite:</strong>
+                            <span style={{ marginLeft: "0.5rem" }}>
+                                {status?.sector || "All Other Sectors"} · {status?.business_activity || "General"}
+                            </span>
+                        </div>
+                        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+                            <Badge tone={verified ? "success" : "neutral"}>
+                                {verified ? "Taxpayer Verified" : "Taxpayer Unverified"}
+                            </Badge>
                             <Badge tone="neutral">{assignedScenarios.length} Scenarios Auto-Mapped</Badge>
                         </div>
-                        <p style={{ margin: "0.35rem 0 0 0", fontSize: "0.825rem", color: "var(--text-muted, #64748b)" }}>
-                            Official test scenarios automatically mapped from your Business Nature & Sector per FBR Documentation Section 10.
-                        </p>
                     </div>
 
-                    {!hasAssignedScenarios && verified && (
-                        <Notice tone="warning">No assigned sandbox scenarios found. Configure your company's assigned scenarios in Company Details before running certification.</Notice>
-                    )}
+                    <p style={{ margin: "0 0 1rem 0", fontSize: "0.85rem", color: "var(--text-muted, #64748b)" }}>
+                        You can run <strong>Auto Sandbox Testing</strong> immediately with your PRAL sandbox token. <strong>Company Verification</strong> can be performed independently once PRAL whitelists your server IP.
+                    </p>
 
-                    <div className="fbr-panel-actions">
+                    {/* Two Independent Action Buttons */}
+                    <div className="fbr-panel-actions" style={{ gap: "12px", display: "flex", flexWrap: "wrap" }}>
                         <Button
-                            disabled={!verified || (!sandboxToken.trim() && !status?.sandbox_configured) || !hasAssignedScenarios || running}
+                            variant="secondary"
+                            disabled={!isSandboxConfigured || verifying || loadingStatus}
+                            onClick={verifyCompany}
+                        >
+                            {verifying ? "Verifying with FBR…" : verified ? "Re-verify Company with FBR" : "Verify Company with FBR"}
+                        </Button>
+                        <Button
+                            disabled={!isSandboxConfigured || !hasAssignedScenarios || running || loadingStatus}
                             onClick={() => void runScenarios()}
                         >
-                            {running ? "Running scenarios…" : "Run Sector Sandbox Scenarios"}
+                            {running ? "Running Auto Testing…" : "Run Auto Sandbox Testing"}
                         </Button>
                     </div>
+
+                    {verificationError && (
+                        <div style={{ marginTop: "14px" }}>
+                            <Notice tone="warning">
+                                <strong>FBR verification failed</strong>
+                                <p style={{ margin: "8px 0 0", whiteSpace: "pre-line" }}>{verificationError}</p>
+                            </Notice>
+                        </div>
+                    )}
+
+                    {verified && status?.verification && <div style={{ marginTop: "14px" }}>
+                        <Notice tone="success">
+                            <strong>Company verified with FBR.</strong>
+                            <ul style={{ margin: "8px 0 0", paddingLeft: "20px" }}>
+                                <li>Company NTN: {status.verification.ntn_cnic || "Matched"}</li>
+                                <li>STATL status: {status.verification.status || "Unknown"} (code: {status.verification.statl_status_code || "—"})</li>
+                                <li>Get_Reg_Type: {status.verification.registration_type || "Registered"}</li>
+                            </ul>
+                            {status.verification.checked_at ? <p>Checked {new Date(status.verification.checked_at).toLocaleString()}</p> : null}
+                        </Notice>
+                    </div>}
+
+                    {!hasAssignedScenarios && isSandboxConfigured && (
+                        <div style={{ marginTop: "14px" }}>
+                            <Notice tone="warning">No assigned sandbox scenarios found. Configure your company's assigned scenarios in Company Details before running certification.</Notice>
+                        </div>
+                    )}
 
                     {allPassed && (
                         <div style={{ marginTop: "16px" }}>
@@ -271,7 +323,7 @@ export function FbrIntegrationPanel() {
                         </div>
                     )}
 
-                    {results.length > 0 && <div className="fbr-saved-results">
+                    {results.length > 0 && <div className="fbr-saved-results" style={{ marginTop: "16px" }}>
                         <h3>Latest sandbox results</h3>
                         {assignedScenarios.map(scenario => {
                             const result = results.find(r => r.scenario_id === scenario.id);
@@ -285,15 +337,16 @@ export function FbrIntegrationPanel() {
                 </Card>
             </div>
 
+            {/* Live Production Credentials */}
             <div className={allPassed ? "" : "fbr-locked-wrap"}>
                 {!allPassed && (
                     <div className="fbr-lock-overlay" role="status">
                         <span aria-hidden="true">🔒</span>
                         <strong>Production Credentials Locked</strong>
-                        <span>Complete all assigned sandbox scenarios successfully in Phase 2 to unlock live production access.</span>
+                        <span>Complete all assigned sandbox scenarios successfully to unlock live production access.</span>
                     </div>
                 )}
-                <Card title="Phase 3 · Live Production Credentials" className={!allPassed ? "fbr-locked-card" : ""}>
+                <Card title="Live Production Credentials" className={!allPassed ? "fbr-locked-card" : ""}>
                     <div className="fbr-production-heading">
                         <div>
                             <h3>Production Token</h3>
