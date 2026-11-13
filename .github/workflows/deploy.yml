@@ -1,4 +1,5 @@
-name: Deploy to Shared Hosting
+
+name: Deploy Laravel Backend
 
 on:
   workflow_dispatch:
@@ -9,29 +10,18 @@ jobs:
 
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
+          tools: composer
 
       - name: Install Composer Dependencies
-        run: |
-          composer install --no-dev --optimize-autoloader
+        run: composer install --no-dev --optimize-autoloader --no-interaction
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          
-      - name: Build React Frontend
-        run: |
-          cd react-erp-app
-          npm ci
-          npm run build
-
-      - name: Upload to FTP
+      - name: Upload Laravel Backend
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
           server: ${{ secrets.FTP_HOST }}
@@ -41,3 +31,7 @@ jobs:
           local-dir: ./
           exclude: |
             **/.env
+            **/.git*
+            **/.github/**
+            **/node_modules/**
+            **/react-erp-app/**
