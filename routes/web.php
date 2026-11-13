@@ -138,3 +138,69 @@ Route::prefix('api/v1/companies/{company}')->middleware(['auth:sanctum', EnsureC
     Route::post('stock/movements', [StockController::class, 'store']);
     Route::post('stock/movements/{movement}/reverse', [StockController::class, 'reverse'])->whereNumber('movement');
 });
+
+/*
+ * Run one explicitly named migration. The browser only submits the filename;
+ * the server resolves it inside database/migrations and never accepts a path.
+ */
+Route::get('/run-migration', function () {
+    if (! auth('sanctum')->check()) {
+        return redirect('/#/login');
+    }
+
+    return view('run-migration');
+})->name('run-migration.form');
+
+Route::post('/run-migration', function (Request $request) {
+    $validated = $request->validate([
+        'migration' => [
+            'required',
+            'string',
+            'max:255',
+            'regex:/\\A[0-9]{4}_[0-9]{2}_[0-9]{2}_[0-9]{6}_[A-Za-z0-9_]+\\.php\\z/',
+        ],
+    ]);
+
+    $filename = $validated['migration'];
+    $migrationDirectory = realpath(database_path('migrations'));
+    $migrationFile = realpath(database_path('migrations/'.$filename));
+
+    if (
+        $migrationDirectory === false ||
+        $migrationFile === false ||
+        dirname($migrationFile) !== $migrationDirectory ||
+        ! is_file($migrationFile)
+    ) {
+        return back()
+            ->withErrors(['migration' => 'Migration file was not found in database/migrations.'])
+            ->withInput();
+    }
+
+    try {
+        $exitCode = Artisan::call('migrate', [
+            '--path' => 'database/migrations/'.$filename,
+            '--force' => true,
+        ]);
+        $output = trim(Artisan::output());
+
+        if ($exitCode !== 0) {
+            Log::error('Selected migration command failed.', [
+                'migration' => $filename,
+                'exit_code' => $exitCode,
+                'output' => $output,
+            ]);
+
+            return back()->with('migration_error', $output !== '' ? $output : 'Migration command failed. Check the Laravel log.');
+        }
+
+        return back()->with('migration_success', $output !== '' ? $output : 'Migration command completed successfully.');
+    } catch (Throwable $exception) {
+        Log::error('Selected migration threw an exception.', [
+            'migration' => $filename,
+            'exception' => $exception::class,
+            'message' => $exception->getMessage(),
+        ]);
+
+        return back()->with('migration_error', 'Migration failed. Check storage/logs/laravel.log for details.');
+    }
+})->middleware(['auth:sanctum', 'throttle:3,1'])->name('run-migration.execute');
