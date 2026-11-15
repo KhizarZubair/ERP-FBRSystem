@@ -19,6 +19,8 @@ class CompanyDetailsResource extends JsonResource
         $sellerNtn = (strlen((string) $this->ntn_cnic) >= 7 && strlen((string) $this->ntn_cnic) <= 8) ? $this->ntn_cnic : null;
         $sellerCnic = $this->technical_contact ?: (strlen((string) $this->ntn_cnic) === 13 ? $this->ntn_cnic : null);
 
+        $clientUser = $this->relationLoaded('users') ? $this->users->first(fn ($u) => ! $u->isSuperAdmin()) : null;
+
         return [
             'id' => $this->id, 'name' => $this->name, 'ntn_cnic' => $this->ntn_cnic, 'seller_ntn' => $sellerNtn, 'seller_cnic' => $sellerCnic, 'province' => $this->province, 'address' => $this->address,
             'contact_person' => $this->contact_person, 'email' => $this->email, 'phone' => $this->phone,
@@ -30,6 +32,11 @@ class CompanyDetailsResource extends JsonResource
             'supported_scenarios' => config('fbr.supported_scenarios'),
             'business_activities' => config('fbr.business_activities'), 'sectors' => config('fbr.sectors'),
             'can_edit' => $this->pivot->role->value === 'owner', 'credentials' => $credentials,
+            'client_user' => $clientUser ? [
+                'id' => $clientUser->id,
+                'name' => $clientUser->name,
+                'email' => $clientUser->email,
+            ] : null,
         ];
     }
 }

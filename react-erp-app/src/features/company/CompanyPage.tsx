@@ -10,6 +10,7 @@ import { CompanyDetailsView } from "./CompanyDetailsView";
 import { FbrIntegrationPanel } from "./FbrIntegrationPanel";
 import { FbrGuidanceModal } from "./FbrGuidanceModal";
 import { ChangePasswordModal } from "../auth/ChangePasswordModal";
+import { ChangeClientPasswordModal } from "./ChangeClientPasswordModal";
 import type { CompanyDetails } from "./companyApi";
 
 const businessActivities = ["Manufacturer", "Importer", "Distributor", "Wholesaler", "Retailer", "Exporter", "Service Provider", "Other"];
@@ -103,6 +104,7 @@ function FirstCompanySetup({ onCreated }: { onCreated: () => Promise<void> }) {
 }
 
 function ExistingCompany({ companyId, onRefresh }: { companyId: number; onRefresh: () => Promise<void> }) {
+    const { user } = useAuth();
     const [showPassword, setShowPassword] = useState(false);
     const [passwordMessage, setPasswordMessage] = useState("");
     const [showFbrGuidance, setShowFbrGuidance] = useState(false);
@@ -123,17 +125,32 @@ function ExistingCompany({ companyId, onRefresh }: { companyId: number; onRefres
     return <>
         <PageHeader title="Company & FBR Setup" description="Manage your registered business profile and FBR integration settings."
             actions={company ? <>
-                <Button variant="secondary" onClick={() => setShowPassword(true)}>Change login password</Button>
+                <Button variant="secondary" onClick={() => setShowPassword(true)}>
+                    {user?.is_super_admin ? "Change company login password" : "Change login password"}
+                </Button>
                 <Button variant="secondary" onClick={() => setShowFbrGuidance(true)}>FBR Credential Details</Button>
                 {company.can_edit && !editing && <Button onClick={() => { setSaved(false); setEditing(true); }}>Edit company details</Button>}
             </> : undefined} />
         {passwordMessage && <Notice tone="success">{passwordMessage}</Notice>}
-        {showPassword && <ChangePasswordModal onClose={() => setShowPassword(false)} onSaved={message => { setPasswordMessage(message); setShowPassword(false); }} />}
+        {showPassword && (
+            user?.is_super_admin && company ? (
+                <ChangeClientPasswordModal
+                    company={company}
+                    onClose={() => setShowPassword(false)}
+                    onSaved={message => { setPasswordMessage(message); setShowPassword(false); }}
+                />
+            ) : (
+                <ChangePasswordModal
+                    onClose={() => setShowPassword(false)}
+                    onSaved={message => { setPasswordMessage(message); setShowPassword(false); }}
+                />
+            )
+        )}
         {saved && <Notice tone="success">Company details saved successfully.</Notice>}
         {error ? <Notice tone="warning">{error} <Button variant="quiet" onClick={() => { void load(); }}>Try again</Button></Notice>
             : !company ? <p role="status">Loading company details…</p>
-            : editing ? <CompanyForm company={company} onSaved={updated} onCancel={() => setEditing(false)} />
-            : <><CompanyDetailsView company={company} /><FbrIntegrationPanel /></>}
+                : editing ? <CompanyForm company={company} onSaved={updated} onCancel={() => setEditing(false)} />
+                    : <><CompanyDetailsView company={company} /><FbrIntegrationPanel /></>}
         {showFbrGuidance && <FbrGuidanceModal onClose={() => setShowFbrGuidance(false)} />}
     </>;
 }

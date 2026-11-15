@@ -170,4 +170,25 @@ class CompanyController extends Controller
 
         return response()->json(['message' => 'Company soft-deleted successfully.']);
     }
+
+    public function updateClientPassword(Request $request, int $company): JsonResponse
+    {
+        abort_unless($request->user()?->isSuperAdmin(), 403, 'Only Super Admin can reset client company passwords.');
+
+        $request->validate([
+            'password' => ['required', 'string', \Illuminate\Validation\Rules\Password::min(8), 'max:128', 'confirmed'],
+            'password_confirmation' => ['required', 'string', 'max:128'],
+        ]);
+
+        $clientUser = $this->companies->updateClientPassword($request->user(), $company, $request->string('password'));
+
+        return response()->json([
+            'message' => "Login password for client user ({$clientUser->email}) has been changed successfully.",
+            'client_user' => [
+                'id' => $clientUser->id,
+                'email' => $clientUser->email,
+                'name' => $clientUser->name,
+            ],
+        ]);
+    }
 }

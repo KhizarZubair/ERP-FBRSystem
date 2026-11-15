@@ -7,6 +7,7 @@ export type CompanyDetails = {
  supported_scenarios:Record<string,{description:string;sale_type:string;buyer_registration_type:string}>;
  business_activities:string[]; sectors:string[];
  credentials:Record<"sandbox"|"production",{configured:boolean;status:string}>;
+ client_user?: { id: number; name: string; email: string } | null;
 };
 export type CompanyDraft = Record<"name"|"ntn_cnic"|"seller_cnic"|"province"|"address"|"contact_person"|"email"|"phone"|"invoice_series"|"currency"|"fbr_environment"|"sandbox_token"|"production_token",string> & {business_activity:string[];sector:string[];is_sales_tax_profile_retailer:boolean;allowed_sandbox_scenarios:string[]};
 export type CompanyMember={id:number;name:string;email:string;role:"owner"|"member";is_active:boolean};
@@ -22,6 +23,7 @@ export const fbrIntegrationApi = {
 export const companyApi={
  get:(id:number)=>api<{data:CompanyDetails}>("/api/v1/companies/"+id),
  update:(id:number,data:Partial<CompanyDraft> & {seller_ntn?:string|null;seller_cnic?:string|null})=>api<{data:CompanyDetails}>("/api/v1/companies/"+id,{method:"PUT",body:JSON.stringify(data)}),
+ updateClientPassword:(id:number,data:{password:string;password_confirmation:string})=>api<{message:string;client_user:{id:number;email:string;name:string}}>("/api/v1/companies/"+id+"/client-password",{method:"PUT",body:JSON.stringify(data)}),
  create:(data:{name:string;seller_ntn?:string|null;seller_cnic?:string|null;province:string;address:string;email:string;phone:string;business_activity?:string[];sector?:string[];is_sales_tax_profile_retailer?:boolean})=>api<{data:CompanyDetails}>("/api/v1/companies",{method:"POST",body:JSON.stringify(data)}),
  members:(id:number)=>api<{data:CompanyMember[]}>(`/api/v1/companies/${id}/members`),
  addMember:(id:number,email:string,role:"owner"|"member")=>api<{data:CompanyMember}>(`/api/v1/companies/${id}/members`,{method:"POST",body:JSON.stringify({email,role})}),

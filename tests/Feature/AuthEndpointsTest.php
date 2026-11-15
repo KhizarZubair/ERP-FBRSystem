@@ -219,4 +219,64 @@ class AuthEndpointsTest extends TestCase
         $this->postJson('/api/v1/auth/login', ['email' => $data['email'], 'password' => $data['password']])->assertUnprocessable();
         $this->postJson('/api/v1/auth/login', ['email' => $data['email'], 'password' => 'New-password-456'])->assertOk();
     }
+
+    public function test_super_admin_updates_client_company_password_without_modifying_super_admin_password(): void
+    {
+        $superAdmin = User::firstOrCreate(['id' => 1], [
+            'name' => 'Super Admin',
+            'email' => 'superadmin@erp.test',
+            'password' => 'SuperAdminSecret123',
+        ]);
+        $superAdmin->forceFill(['password' => 'SuperAdminSecret123'])->save();
+
+        $clientUser = User::factory()->create([
+            'email' => 'client-'.bin2hex(random_bytes(4)).'@test.com',
+            'password' => 'OldClientPass123',
+            'is_active' => true,
+        ]);
+
+        $company = Company::create([
+            'name' => 'Client Test Corp',
+            'ntn_cnic' => '7654321',
+            'province' => 'Sindh',
+            'address' => 'Karachi',
+            'email' => $clientUser->email,
+            'invoice_series' => 'INV',
+            'currency' => 'PKR',
+            'fbr_environment' => 'sandbox',
+            'is_active' => true,
+        ]);
+
+        $company->users()->attach($superAdmin->id, [
+            'role' => \App\Enums\CompanyRole::Owner->value,
+            'is_active' => true,
+        ]);
+        $company->users()->attach($clientUser->id, [
+            'role' => \App\Enums\CompanyRole::Owner->value,
+            'is_active' => true,
+        ]);
+
+        // 1. Super Admin resets client company password
+        $this->actingAs($superAdmin)
+            ->putJson('/api/v1/companies/'.$company->id.'/client-password', [
+                'password' => 'NewClientPass123',
+                'password_confirmation' => 'NewClientPass123',
+            ])
+            ->assertOk()
+            ->assertJsonPath('client_user.email', $clientUser->email);
+
+        // 2. Client password updated
+        $this->assertTrue(Hash::check('NewClientPass123', $clientUser->fresh()->password));
+
+        // 3. Super Admin password MUST REMAIN UNCHANGED
+        $this->assertTrue(Hash::check('SuperAdminSecret123', $superAdmin->fresh()->password));
+
+        // 4. Non-super-admin user is denied access to reset client password endpoint
+        $this->actingAs($clientUser)
+            ->putJson('/api/v1/companies/'.$company->id.'/client-password', [
+                'password' => 'HackedPassword123',
+                'password_confirmation' => 'HackedPassword123',
+            ])
+            ->assertForbidden();
+    }
 }

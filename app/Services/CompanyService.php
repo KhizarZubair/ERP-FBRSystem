@@ -273,7 +273,7 @@ class CompanyService
 
         if ($user->isSuperAdmin()) {
             $company = Company::where('companies.id', $companyId)
-                ->with(['fbrIntegrations', 'scenarioCertification'])
+                ->with(['fbrIntegrations', 'scenarioCertification', 'users'])
                 ->firstOrFail();
             $pivot = new CompanyUser(['role' => CompanyRole::Owner->value, 'is_active' => true]);
             $pivot->setRelation('company', $company);
@@ -283,7 +283,55 @@ class CompanyService
         }
 
         return $user->companies()->where('companies.is_active', true)->wherePivot('is_active', true)
-            ->where('companies.id', $companyId)->with(['fbrIntegrations', 'scenarioCertification'])->firstOrFail();
+            ->where('companies.id', $companyId)->with(['fbrIntegrations', 'scenarioCertification', 'users'])->firstOrFail();
+    }
+
+    public function updateClientPassword(User $superAdmin, int $companyId, string $newPassword): User
+    {
+        abort_unless($superAdmin->isSuperAdmin(), 403, 'Only Super Admin can reset client company passwords.');
+
+        $company = Company::findOrFail($companyId);
+
+        // Find the client user attached to this company (not super admin)
+        $clientUser = $company->users()->where('users.id', '!=', 1)->first();
+
+        if ($clientUser === null) {
+            // If no separate user exists, check if company email exists to create or attach
+            if (filled($company->email)) {
+                $email = mb_strtolower(trim($company->email));
+                $clientUser = User::whereRaw('LOWER(email) = ?', [$email])->first();
+                if ($clientUser === null) {
+                    $clientUser = User::create([
+                        'name' => $company->contact_person ?: $company->name.' Representative',
+                        'email' => $email,
+                        'phone' => $company->phone,
+                        'password' => $newPassword,
+                    ]);
+                    $clientUser->forceFill(['is_active' => true])->save();
+                } else {
+                    $clientUser->forceFill([
+                        'password' => $newPassword,
+                        'remember_token' => \Illuminate\Support\Str::random(60),
+                    ])->save();
+                }
+
+                $company->users()->syncWithoutDetaching([
+                    $clientUser->id => [
+                        'role' => CompanyRole::Owner->value,
+                        'is_active' => true,
+                    ],
+                ]);
+            } else {
+                abort(422, 'No client user found for this company to change password.');
+            }
+        } else {
+            $clientUser->forceFill([
+                'password' => $newPassword,
+                'remember_token' => \Illuminate\Support\Str::random(60),
+            ])->save();
+        }
+
+        return $clientUser;
     }
 
     public function toggleCompanyStatus(User $superAdmin, int $companyId): Company

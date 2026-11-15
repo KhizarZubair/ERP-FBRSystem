@@ -81,6 +81,7 @@ Route::prefix('api/v1/companies')->middleware('auth:sanctum')->group(function ()
     Route::post('{company}/switch', [CompanyController::class, 'switchWorkspace'])->whereNumber('company');
     Route::get('{company}', [CompanyController::class, 'show'])->whereNumber('company');
     Route::put('{company}', [CompanyController::class, 'update'])->whereNumber('company');
+    Route::put('{company}/client-password', [CompanyController::class, 'updateClientPassword'])->whereNumber('company');
     Route::patch('{company}/toggle-status', [CompanyController::class, 'toggleStatus'])->whereNumber('company');
     Route::delete('{company}', [CompanyController::class, 'destroy'])->whereNumber('company');
     Route::get('{company}/members', [CompanyController::class, 'members'])->whereNumber('company');
