@@ -2,7 +2,8 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "../features/auth/AuthContext";
 import { Button, Badge, Notice } from "../components/ui";
-const links = [
+
+const companyLinks = [
     ["/overview", "Overview"],
     ["/customers", "Customers"],
     ["/items", "Items & prices"],
@@ -10,6 +11,12 @@ const links = [
     ["/invoices", "Sales invoices"],
     ["/company", "Company Details"],
 ];
+
+const adminLinks = [
+    ["/admin/overview", "Overview"],
+    ["/admin/companies", "Companies"],
+];
+
 export function Sidebar({
     path,
     companyName,
@@ -21,53 +28,79 @@ export function Sidebar({
 }) {
     const { user, activeCompany, logout } = useAuth();
     const isCompanyConfigured = Boolean(activeCompany?.id && activeCompany?.ntn_cnic);
+    const isSuperAdminPortal = Boolean(user?.is_super_admin && (path.startsWith("/admin/") || !activeCompany));
     const [signingOut, setSigningOut] = useState(false);
     const [error, setError] = useState("");
+
     return (
         <>
-            <a className="brand"  href="#/overview">
+            <a className="brand" href={isSuperAdminPortal ? "#/admin/overview" : "#/overview"}>
                 NEXA / ERP
             </a>
-            <p className="eyebrow">BUSINESS WORKSPACE</p>
-            <div className="workspace-name">{companyName}</div>
-                        <p className="sidebar-muted">Company workspace • Pakistan</p>
-            <nav aria-label="Main navigation">
-                {user?.is_super_admin && (
-                    <a
-                        key="/admin/companies"
-                        href="#/admin/companies"
-                        onClick={close}
-                        aria-current={path.startsWith("/admin/companies") ? "page" : undefined}
-                        className={`${path.startsWith("/admin/companies") ? "nav-link active" : "nav-link"}`}
-                        style={{ fontWeight: 600, color: "#38bdf8" }}
-                    >
-                        ⚖️ Client Companies Hub
-                    </a>
-                )}
-                {links.map(([href, label]) => {
-                    const requiresCompany = ["/customers", "/items", "/invoices", "/stock"].includes(href);
-                    const disabled = requiresCompany && !isCompanyConfigured;
-                    return (
-                        <a
-                            key={href}
-                            href={`#${href}`}
-                            onClick={event => {
-                                if (disabled) {
-                                    event.preventDefault();
-                                    return;
-                                }
-                                close();
-                            }}
-                            aria-current={path.startsWith(href) ? "page" : undefined}
-                            aria-disabled={disabled || undefined}
-                            title={disabled ? "Please configure your company details first to unlock this section." : undefined}
-                            className={`${path.startsWith(href) ? "nav-link active" : "nav-link"}${disabled ? " nav-link--disabled" : ""}`}
-                        >
-                            {label}{disabled && <span className="nav-lock-hint" aria-hidden="true"> · Setup required</span>}
-                        </a>
-                    );
-                })}
-            </nav>
+
+            {isSuperAdminPortal ? (
+                <>
+                    <p className="eyebrow">TAX CONSULTANT PORTAL</p>
+                    <div className="workspace-name">Super Admin Hub</div>
+                    <p className="sidebar-muted">Multi-Company Management</p>
+                    <nav aria-label="Super Admin navigation">
+                        {adminLinks.map(([href, label]) => (
+                            <a
+                                key={href}
+                                href={`#${href}`}
+                                onClick={close}
+                                aria-current={path.startsWith(href) ? "page" : undefined}
+                                className={path.startsWith(href) ? "nav-link active" : "nav-link"}
+                            >
+                                {label}
+                            </a>
+                        ))}
+                    </nav>
+                </>
+            ) : (
+                <>
+                    <p className="eyebrow">{user?.is_super_admin ? "CLIENT WORKSPACE" : "BUSINESS WORKSPACE"}</p>
+                    <div className="workspace-name">{companyName}</div>
+                    <p className="sidebar-muted">{user?.is_super_admin ? "Viewing as Super Admin" : "Company workspace • Pakistan"}</p>
+                    <nav aria-label="Main navigation">
+                        {user?.is_super_admin && (
+                            <a
+                                key="/admin/companies"
+                                href="#/admin/companies"
+                                onClick={close}
+                                className="nav-link"
+                                style={{ fontWeight: 600, color: "#38bdf8", marginBottom: "0.5rem" }}
+                            >
+                                ⬅ Exit to Admin Hub
+                            </a>
+                        )}
+                        {companyLinks.map(([href, label]) => {
+                            const requiresCompany = ["/customers", "/items", "/invoices", "/stock"].includes(href);
+                            const disabled = requiresCompany && !isCompanyConfigured;
+                            return (
+                                <a
+                                    key={href}
+                                    href={`#${href}`}
+                                    onClick={event => {
+                                        if (disabled) {
+                                            event.preventDefault();
+                                            return;
+                                        }
+                                        close();
+                                    }}
+                                    aria-current={path.startsWith(href) ? "page" : undefined}
+                                    aria-disabled={disabled || undefined}
+                                    title={disabled ? "Please configure your company details first to unlock this section." : undefined}
+                                    className={`${path.startsWith(href) ? "nav-link active" : "nav-link"}${disabled ? " nav-link--disabled" : ""}`}
+                                >
+                                    {label}{disabled && <span className="nav-lock-hint" aria-hidden="true"> · Setup required</span>}
+                                </a>
+                            );
+                        })}
+                    </nav>
+                </>
+            )}
+
             <div className="sidebar-bottom">
                 <span className="sidebar-muted">{user?.email}</span>
                 {error && <Notice tone="warning">{error}</Notice>}
@@ -81,6 +114,7 @@ export function Sidebar({
         </>
     );
 }
+
 export function AppLayout({
     path,
     companyName,
@@ -90,11 +124,12 @@ export function AppLayout({
     companyName: string;
     children: ReactNode;
 }) {
-    const { user } = useAuth();
+    const { user, activeCompany } = useAuth();
     const [open, setOpen] = useState(false);
-    const allLinks = [["/admin/companies", "Client Companies Hub"], ...links];
-    const title =
-        allLinks.find(([href]) => path.startsWith(href))?.[1] || "Workspace";
+    const isSuperAdminPortal = Boolean(user?.is_super_admin && (path.startsWith("/admin/") || !activeCompany));
+    const allLinks = [...adminLinks, ...companyLinks];
+    const title = allLinks.find(([href]) => path.startsWith(href))?.[1] || "Workspace";
+
     return (
         <div className="app-shell">
             <a
@@ -116,7 +151,7 @@ export function AppLayout({
             )}
             <aside className={`sidebar ${open ? "sidebar--open" : ""}`}>
                 <Sidebar
-                    {...{ path, companyName }}
+                    {...{ path, companyName: isSuperAdminPortal ? "Super Admin Hub" : companyName }}
                     close={() => setOpen(false)}
                 />
             </aside>
@@ -133,31 +168,44 @@ export function AppLayout({
                             ☰
                         </Button>
                         <span>
-                            {companyName}{" "}
+                            {isSuperAdminPortal ? "Super Admin Hub" : companyName}{" "}
                             <span className="breadcrumb-separator">/</span>{" "}
                             {title}
                         </span>
-                        {user?.is_super_admin && path !== "/admin/companies" && (
+                        {user?.is_super_admin && !isSuperAdminPortal && (
                             <a
                                 href="#/admin/companies"
                                 style={{
                                     fontSize: "0.75rem",
-                                    padding: "2px 8px",
+                                    padding: "3px 10px",
                                     backgroundColor: "rgba(14, 165, 233, 0.15)",
                                     border: "1px solid rgba(14, 165, 233, 0.4)",
                                     borderRadius: "4px",
                                     color: "#0284c7",
                                     textDecoration: "none",
-                                    fontWeight: 500,
+                                    fontWeight: 600,
                                 }}
                             >
-                                ⚖️ Switch Client Company
+                                ⬅ Exit to Companies Hub
                             </a>
                         )}
                     </div>
                     <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                        {user?.is_super_admin && <Badge tone="neutral">Tax Consultant / Lawyer</Badge>}
-                        <Badge tone="success">{path === "/admin/companies" ? "Client companies" : path === "/company" ? "Company profile" : path.startsWith("/customers") ? "Customer records" : path.startsWith("/items") ? "Item records" : path.startsWith("/invoices") ? "Invoice records" : path === "/stock" ? "Stock ledger" : "Live overview"}</Badge>
+                        {user?.is_super_admin && (
+                            <Badge tone="neutral">
+                                {isSuperAdminPortal ? "Super Admin (Lawyer)" : "Viewing as Super Admin"}
+                            </Badge>
+                        )}
+                        <Badge tone="success">
+                            {path === "/admin/overview" ? "Admin Overview"
+                                : path === "/admin/companies" ? "Client Directory"
+                                : path === "/company" ? "Company profile"
+                                : path.startsWith("/customers") ? "Customer records"
+                                : path.startsWith("/items") ? "Item records"
+                                : path.startsWith("/invoices") ? "Invoice records"
+                                : path === "/stock" ? "Stock ledger"
+                                : "Live overview"}
+                        </Badge>
                     </div>
                 </div>
                 {children}
@@ -165,6 +213,7 @@ export function AppLayout({
         </div>
     );
 }
+
 export function AuthLayout({ children }: { children: ReactNode }) {
     return (
         <div className="auth-shell">

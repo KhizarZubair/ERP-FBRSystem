@@ -41,7 +41,7 @@ export function SuperAdminCompaniesPage() {
     const [phone, setPhone] = useState("");
     const [isRetailer, setIsRetailer] = useState(false);
     const [businessActivities, setBusinessActivities] = useState<string[]>(["Service Provider"]);
-    const [sectors, setSectors] = useState<string[]>(["Services"]);
+    const [selectedSector, setSelectedSector] = useState<string>("Services");
     const [sandboxToken, setSandboxToken] = useState("");
 
     // Client user fields
@@ -94,12 +94,6 @@ export function SuperAdminCompaniesPage() {
         );
     }
 
-    function toggleSector(item: string) {
-        setSectors(prev =>
-            prev.includes(item) ? prev.filter(x => x !== item) : [...prev, item]
-        );
-    }
-
     async function handleEnroll(e: React.FormEvent) {
         e.preventDefault();
         setEnrolling(true);
@@ -116,7 +110,7 @@ export function SuperAdminCompaniesPage() {
                     email,
                     phone: phone || null,
                     business_activity: businessActivities,
-                    sector: sectors,
+                    sector: [selectedSector],
                     is_sales_tax_profile_retailer: isRetailer,
                     sandbox_token: sandboxToken || null,
                     client_name: clientName || null,
@@ -128,6 +122,7 @@ export function SuperAdminCompaniesPage() {
             setEnrollOpen(false);
             // Reset fields
             setName(""); setSellerNtn(""); setSellerCnic(""); setAddress(""); setEmail(""); setPhone("");
+            setSelectedSector("Services");
             setClientName(""); setClientEmail(""); setClientPassword(""); setSandboxToken("");
             await loadCompanies();
             await refresh();
@@ -224,7 +219,11 @@ export function SuperAdminCompaniesPage() {
             {/* Enroll Company Modal */}
             {enrollOpen && (
                 <Modal title="Enroll New Client Company" onClose={() => setEnrollOpen(false)} wide>
-                    <form onSubmit={handleEnroll} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                    <form onSubmit={handleEnroll} autoComplete="off" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                        {/* Hidden dummy credentials to trap aggressive browser password managers */}
+                        <input type="text" style={{ display: "none" }} tabIndex={-1} autoComplete="username" />
+                        <input type="password" style={{ display: "none" }} tabIndex={-1} autoComplete="current-password" />
+
                         {enrollError && <Notice tone="warning">{enrollError}</Notice>}
 
                         <div style={{ fontWeight: 600, borderBottom: "1px solid var(--border-color, #e2e8f0)", paddingBottom: "4px" }}>
@@ -240,7 +239,17 @@ export function SuperAdminCompaniesPage() {
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                             <Select label="Province *" required value={province} onChange={e => setProvince(e.target.value)}
                                 options={provinces.map(p => ({ value: p, label: p }))} />
-                            <Input label="Company Email *" type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="billing@company.com" />
+                            <Input
+                                label="Company Email"
+                                type="email"
+                                name="company_registration_email"
+                                id="company_registration_email"
+                                autoComplete="new-company-email"
+                                required
+                                value={email}
+                                onChange={e => setEmail(e.target.value)}
+                                placeholder="billing@company.com"
+                            />
                         </div>
 
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
@@ -273,17 +282,35 @@ export function SuperAdminCompaniesPage() {
                         </div>
 
                         <div>
-                            <label style={{ display: "block", marginBottom: "4px", fontSize: "0.875rem", fontWeight: 500 }}>Business Sector (Select all applicable):</label>
-                            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", maxHeight: "120px", overflowY: "auto" }}>
+                            <label style={{ display: "block", marginBottom: "6px", fontSize: "0.875rem", fontWeight: 500 }}>Business Sector (Select one):</label>
+                            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", maxHeight: "120px", overflowY: "auto", padding: "4px 0" }}>
                                 {allSectors.map(sec => (
-                                    <button type="button" key={sec} onClick={() => toggleSector(sec)}
+                                    <label
+                                        key={sec}
                                         style={{
-                                            padding: "4px 10px", borderRadius: "16px", border: "1px solid var(--border-color, #cbd5e1)",
-                                            background: sectors.includes(sec) ? "var(--primary-color, #0f172a)" : "transparent",
-                                            color: sectors.includes(sec) ? "#fff" : "inherit", cursor: "pointer", fontSize: "0.8rem"
-                                        }}>
-                                        {sec}
-                                    </button>
+                                            display: "inline-flex",
+                                            alignItems: "center",
+                                            gap: "6px",
+                                            padding: "4px 10px",
+                                            borderRadius: "16px",
+                                            border: "1px solid var(--border-color, #cbd5e1)",
+                                            background: selectedSector === sec ? "var(--primary-color, #0f172a)" : "transparent",
+                                            color: selectedSector === sec ? "#fff" : "inherit",
+                                            cursor: "pointer",
+                                            fontSize: "0.8rem",
+                                            userSelect: "none"
+                                        }}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="company_business_sector"
+                                            value={sec}
+                                            checked={selectedSector === sec}
+                                            onChange={() => setSelectedSector(sec)}
+                                            style={{ margin: 0, cursor: "pointer" }}
+                                        />
+                                        <span>{sec}</span>
+                                    </label>
                                 ))}
                             </div>
                         </div>
@@ -298,9 +325,27 @@ export function SuperAdminCompaniesPage() {
                         </p>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                             <Input label="Client Contact Name" value={clientName} onChange={e => setClientName(e.target.value)} placeholder="e.g. Muhammad Ali" />
-                            <Input label="Client Login Email" type="email" value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="ali@clientcompany.com" />
+                            <Input
+                                label="Client Login Email"
+                                type="email"
+                                name="client_user_email"
+                                id="client_user_email"
+                                autoComplete="off"
+                                value={clientEmail}
+                                onChange={e => setClientEmail(e.target.value)}
+                                placeholder="ali@clientcompany.com"
+                            />
                         </div>
-                        <Input label="Client Login Password" type="password" value={clientPassword} onChange={e => setClientPassword(e.target.value)} placeholder="Minimum 6 characters (Default: Welcome@123)" />
+                        <Input
+                            label="Client Login Password"
+                            type="password"
+                            name="new_client_portal_password"
+                            id="new_client_portal_password"
+                            autoComplete="new-password"
+                            value={clientPassword}
+                            onChange={e => setClientPassword(e.target.value)}
+                            placeholder="Minimum 6 characters"
+                        />
 
                         <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "1rem" }}>
                             <Button type="button" variant="quiet" onClick={() => setEnrollOpen(false)}>Cancel</Button>

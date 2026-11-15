@@ -16,19 +16,21 @@ import { InvoiceForm } from "./features/invoices/InvoiceForm";
 import { InvoiceReview } from "./features/invoices/InvoiceReview";
 import { CompanyPage } from "./features/company/CompanyPage";
 import { SuperAdminCompaniesPage } from "./features/company/SuperAdminCompaniesPage";
+import { SuperAdminOverviewPage } from "./features/company/SuperAdminOverviewPage";
 import { Button, PageHeader } from "./components/ui";
 
 function Workspace() {
     const path = useRoute();
     let page;
-    if (path === "/overview") page = <OverviewPage />;
+    if (path === "/admin/overview") page = <SuperAdminOverviewPage />;
+    else if (path === "/admin/companies") page = <SuperAdminCompaniesPage />;
+    else if (path === "/overview") page = <OverviewPage />;
     else if (path === "/customers" || path.startsWith("/customers/"))
         page = <CustomersPage key={path} path={path} />;
     else if (path === "/items" || path.startsWith("/items/"))
         page = <ItemsPage key={path} path={path} />;
     else if (path === "/stock") page = <StockPage />;
     else if (path === "/company") page = <CompanyPage />;
-    else if (path === "/admin/companies") page = <SuperAdminCompaniesPage />;
     else if (path === "/invoices") page = <InvoicesPage />;
     else if (path === "/invoices/new") page = <InvoiceForm key={path} />;
     else if (/^\/invoices\/[^/]+\/review$/.test(path))
@@ -60,9 +62,16 @@ function SessionGate() {
     const authPage = path === "/login" || path === "/register";
     useEffect(() => {
         if (status !== "ready") return;
-        if (user && authPage) navigate("/overview");
-        else if (!user && !authPage) navigate("/login");
-        else if (user && !Boolean(activeCompany?.id && activeCompany?.ntn_cnic) && ["/customers", "/items", "/stock", "/invoices", "/invoices/new"].some(route => path === route || path.startsWith(route + "/"))) navigate("/overview");
+        if (user && authPage) {
+            if (user.is_super_admin) navigate("/admin/companies");
+            else navigate("/overview");
+        } else if (!user && !authPage) {
+            navigate("/login");
+        } else if (user?.is_super_admin && (path === "/" || (path === "/overview" && !activeCompany))) {
+            navigate("/admin/companies");
+        } else if (user && !user.is_super_admin && !Boolean(activeCompany?.id && activeCompany?.ntn_cnic) && ["/customers", "/items", "/stock", "/invoices", "/invoices/new"].some(route => path === route || path.startsWith(route + "/"))) {
+            navigate("/overview");
+        }
     }, [user, activeCompany, status, authPage, path]);
     if (status === "loading") return <AuthLayout><Card title="Loading your workspace"><p role="status">Checking your session…</p></Card></AuthLayout>;
     if (status === "error") return <AuthLayout><Card title="Connection unavailable"><Notice tone="warning">{error}</Notice><RefreshButton onClick={() => { void refresh(); }} label="Try again" /></Card></AuthLayout>;
