@@ -224,6 +224,44 @@ export function CheckboxGroup({
         </fieldset>
     );
 }
+export function RadioGroup({
+    label,
+    options,
+    value,
+    onChange,
+    hint,
+    error,
+    required = false,
+}: {
+    label: string;
+    options: readonly string[];
+    value: string;
+    onChange: (value: string) => void;
+    hint?: string;
+    error?: string;
+    required?: boolean;
+}) {
+    const id = useId();
+    return (
+        <fieldset className="checkbox-group" aria-describedby={hint || error ? `${id}-help` : undefined}>
+            <legend>{label}{required && <span className="required"> *</span>}</legend>
+            <div className="checkbox-grid">
+                {options.map(option => (
+                    <label className="checkbox-option" key={option}>
+                        <input
+                            type="radio"
+                            name={id}
+                            checked={value === option}
+                            onChange={() => onChange(option)}
+                        />
+                        <span>{option}</span>
+                    </label>
+                ))}
+            </div>
+            {(error || hint) && <small id={`${id}-help`} className={error ? "field-error" : "field-hint"}>{error || hint}</small>}
+        </fieldset>
+    );
+}
 export function Textarea({
     label,
     hint,

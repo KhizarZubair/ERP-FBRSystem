@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Button, Card, CheckboxGroup, FormActions, Input, Notice, Select, Textarea } from "../../components/ui";
+import { Button, Card, CheckboxGroup, FormActions, Input, Notice, RadioGroup, Select, Textarea } from "../../components/ui";
 import { provinces } from "../../data/demo";
 import { ApiError } from "../../lib/api";
 import { companyApi, companyDraft } from "./companyApi";
@@ -41,11 +41,11 @@ export function CompanyForm({ company, onSaved, onCancel }: { company: CompanyDe
             setBusy(false);
             return;
         }
-        if (!draft.business_activity.length || !draft.sector.length) {
+        if (!draft.business_activity.length || !draft.sector) {
             setMessage("Please select at least one Business Nature and one Sector.");
             setErrors({
                 business_activity: draft.business_activity.length ? [] : ["Select at least one business nature."],
-                sector: draft.sector.length ? [] : ["Select at least one sector."],
+                sector: draft.sector ? [] : ["Select a sector."],
             });
             lock.current = false;
             setBusy(false);
@@ -91,14 +91,14 @@ export function CompanyForm({ company, onSaved, onCancel }: { company: CompanyDe
                         error={errors.business_activity?.[0]}
                         hint="Select all business activities registered for this company."
                     />
-                    <CheckboxGroup
+                    <RadioGroup
                         label="FBR Business Sector"
                         required
                         options={company.sectors}
-                        value={draft.sector}
-                        onChange={value => { setDraft(current => ({ ...current, sector: value })); setErrors(current => ({ ...current, sector: [] })); }}
+                        value={draft.sector[0] ?? ""}
+                        onChange={value => { setDraft(current => ({ ...current, sector: [value] })); setErrors(current => ({ ...current, sector: [] })); }}
                         error={errors.sector?.[0]}
-                        hint="Select every sector applicable to this company."
+                        hint="Select the primary sector for this company (one only)."
                     />
                     <Input
                         label="Registered as retailer in FBR Sales Tax Profile"
