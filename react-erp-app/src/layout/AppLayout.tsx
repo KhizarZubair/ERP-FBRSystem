@@ -179,28 +179,11 @@ export function AppLayout({
                             <span className="breadcrumb-separator">/</span>{" "}
                             {title}
                         </span>
-                        {user?.is_super_admin && !isSuperAdminPortal && (
-                            <a
-                                href="#/admin/companies"
-                                style={{
-                                    fontSize: "0.75rem",
-                                    padding: "3px 10px",
-                                    backgroundColor: "rgba(14, 165, 233, 0.15)",
-                                    border: "1px solid rgba(14, 165, 233, 0.4)",
-                                    borderRadius: "4px",
-                                    color: "#0284c7",
-                                    textDecoration: "none",
-                                    fontWeight: 600,
-                                }}
-                            >
-                                ⬅ Exit to Companies Hub
-                            </a>
-                        )}
                     </div>
                     <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
                         {user?.is_super_admin && (
                             <Badge tone="neutral">
-                                {isSuperAdminPortal ? "Super Admin (Lawyer)" : "Viewing as Super Admin"}
+                                {isSuperAdminPortal ? "Super Admin" : "Viewing as Super Admin"}
                             </Badge>
                         )}
                         {!isSuperAdminPortal && activeCompany?.is_active === false && (

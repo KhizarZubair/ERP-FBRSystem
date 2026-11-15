@@ -88,30 +88,6 @@ export function SuperAdminOverviewPage() {
                 </Card>
             </div>
 
-            {/* Quick Access & Guide */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
-                <Card title="Quick Management Actions">
-                    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                        <p style={{ margin: 0, fontSize: "0.9rem" }}>
-                            Manage all your client companies from one central dashboard:
-                        </p>
-                        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginTop: "0.5rem" }}>
-                            <Button variant="primary" onClick={() => navigate("/admin/companies")}>
-                                View All Companies ({totalCompanies})
-                            </Button>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card title="Multi-Company Workflow Guide">
-                    <ul style={{ margin: 0, paddingLeft: "1.2rem", fontSize: "0.85rem", lineHeight: 1.6, color: "var(--text-color, #334155)" }}>
-                        <li><strong>Enroll Client:</strong> Add client business details, FBR tokens, and generate self-service credentials.</li>
-                        <li><strong>1-Click Workspace Access:</strong> Click &quot;Enter Workspace&quot; next to any company in the directory to manage invoices on their behalf without needing their password.</li>
-                        <li><strong>Client Isolation:</strong> Client company representatives only see their own records when logging in.</li>
-                    </ul>
-                </Card>
-            </div>
-
             {/* Recent Enrolled Companies Preview */}
             <Card title="Recent Client Companies">
                 {loading ? (

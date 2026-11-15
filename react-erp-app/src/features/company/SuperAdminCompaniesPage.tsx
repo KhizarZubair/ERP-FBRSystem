@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { LayoutDashboard, ToggleLeft, ToggleRight } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { Button, Card, Badge, Notice, Input, Select, Textarea } from "../../components/ui";
 import { Modal } from "../../components/Modal";
@@ -338,23 +339,17 @@ export function SuperAdminCompaniesPage() {
                                                         style={{
                                                             display: "inline-flex",
                                                             alignItems: "center",
-                                                            gap: "4px",
-                                                            padding: "6px 10px",
+                                                            justifyContent: "center",
+                                                            width: "32px",
+                                                            height: "32px",
                                                             borderRadius: "6px",
-                                                            border: "1px solid var(--border-color, #cbd5e1)",
-                                                            background: isCurrent ? "var(--primary-color, #0f172a)" : "#fff",
-                                                            color: isCurrent ? "#fff" : "var(--primary-color, #0f172a)",
+                                                            border: isCurrent ? "1px solid #0284c7" : "1px solid var(--border-color, #cbd5e1)",
+                                                            background: isCurrent ? "#f0f9ff" : "#fff",
+                                                            color: isCurrent ? "#0284c7" : "var(--text-color, #334155)",
                                                             cursor: "pointer",
-                                                            fontSize: "0.8rem",
-                                                            fontWeight: 500,
                                                         }}
                                                     >
-                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                                            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-                                                            <polyline points="10 17 15 12 10 7" />
-                                                            <line x1="15" y1="12" x2="3" y2="12" />
-                                                        </svg>
-                                                        <span>{isCurrent ? "Active" : "Workspace"}</span>
+                                                        <LayoutDashboard size={18} strokeWidth={2} />
                                                     </button>
 
                                                     {/* Edit Company Icon Button */}
@@ -395,20 +390,13 @@ export function SuperAdminCompaniesPage() {
                                                             borderRadius: "6px",
                                                             border: "1px solid var(--border-color, #cbd5e1)",
                                                             background: "#fff",
-                                                            color: isActive ? "#10b981" : "#f59e0b",
                                                             cursor: "pointer",
                                                         }}
                                                     >
                                                         {isActive ? (
-                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                                                <circle cx="12" cy="12" r="10" />
-                                                                <line x1="10" y1="15" x2="10" y2="9" />
-                                                                <line x1="14" y1="15" x2="14" y2="9" />
-                                                            </svg>
+                                                            <ToggleRight size={22} color="#16A36A" strokeWidth={2} />
                                                         ) : (
-                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                                                <polygon points="5 3 19 12 5 21 5 3" />
-                                                            </svg>
+                                                            <ToggleLeft size={22} color="#DC5050" strokeWidth={2} />
                                                         )}
                                                     </button>
 
