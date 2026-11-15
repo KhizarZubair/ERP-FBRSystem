@@ -17,7 +17,14 @@ export function OverviewPage() {
     return <>
         <PageHeader title="Your business at a glance" description="Current saved invoices, master data and local stock."
             actions={<div className="actions">{isCompanyConfigured && <RefreshButton variant="secondary" onClick={query.reload} label="Refresh overview" />}
-                {isCompanyConfigured && company?.role === "owner" && <Button onClick={() => navigate("/invoices/new")}>Create invoice</Button>}</div>} />
+                {isCompanyConfigured && company?.role === "owner" && company?.is_active !== false && <Button onClick={() => navigate("/invoices/new")}>Create invoice</Button>}</div>} />
+        {company?.is_active === false && (
+            <div style={{ marginBottom: "1rem" }}>
+                <Notice tone="warning">
+                    <strong>Notice:</strong> This client company is currently marked as <strong>Deactivated</strong>. Client logins are disabled. As Super Admin, you are viewing this workspace in administrative inspection mode.
+                </Notice>
+            </div>
+        )}
         {!isCompanyConfigured && <Card title="Company Setup Incomplete"><p className="muted">Your ERP features are locked until your company details and seller NTN are configured.</p><div className="actions section-gap"><Button onClick={() => navigate("/company")}>Company Settings</Button></div></Card>}
         {query.error && <Notice tone="warning">{query.error} <RefreshButton variant="quiet" onClick={query.reload} label="Try again" /></Notice>}
         {query.loading && <p role="status">Loading overview…</p>}

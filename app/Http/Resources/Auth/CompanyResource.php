@@ -24,7 +24,7 @@ class CompanyResource extends JsonResource
             'contact_person' => $this->contact_person,
             'email' => $this->email,
             'phone' => $this->phone,
-            'seller_cnic' => $this->technical_contact,
+            'is_active' => (bool) $this->is_active,
             'invoice_series' => $this->invoice_series,
             'currency' => $this->currency,
             'fbr_environment' => $this->fbr_environment,

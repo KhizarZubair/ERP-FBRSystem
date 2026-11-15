@@ -149,4 +149,25 @@ class CompanyController extends Controller
     {
         return (new CompanyDetailsResource($this->companies->updateDetails($request->user(), $company, $request->validated())))->response()->setStatusCode(200);
     }
+
+    public function toggleStatus(Request $request, int $company): JsonResponse
+    {
+        abort_unless($request->user()?->isSuperAdmin(), 403, 'Only Super Admin can toggle company status.');
+
+        $updated = $this->companies->toggleCompanyStatus($request->user(), $company);
+
+        return response()->json([
+            'message' => 'Company status updated successfully.',
+            'data' => new CompanyResource($updated),
+        ]);
+    }
+
+    public function destroy(Request $request, int $company): JsonResponse
+    {
+        abort_unless($request->user()?->isSuperAdmin(), 403, 'Only Super Admin can delete a company.');
+
+        $this->companies->deleteCompany($request->user(), $company);
+
+        return response()->json(['message' => 'Company soft-deleted successfully.']);
+    }
 }

@@ -6,11 +6,12 @@ use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable(['extra_tax', 'fed_payable', 'sku', 'name', 'description', 'hs_code', 'unit_of_measurement', 'sale_type', 'tax_rate_label', 'tax_rate_percent', 'fixed_notified_value_or_retail_price', 'sro_schedule_no', 'sro_item_serial_no', 'track_stock', 'reorder_level', 'is_active'])]
 class Item extends Model
 {
-    use BelongsToCompany;
+    use BelongsToCompany, SoftDeletes;
 
     protected function casts(): array
     {

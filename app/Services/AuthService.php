@@ -54,7 +54,11 @@ class AuthService
         $user->setRelation('companies', app(CompanyService::class)->accessibleCompanies($user));
         if (! config('erp.single_user_mode', false) && ! $user->isSuperAdmin() && $user->companies->isEmpty()) {
             $this->logout($session);
-            throw ValidationException::withMessages(['email' => 'This account has no active company access.']);
+            $hasInactiveCompany = $user->companies()->where('companies.is_active', false)->exists();
+            $msg = $hasInactiveCompany
+                ? 'Your company account is currently deactivated. Please contact your Tax Consultant / Administrator.'
+                : 'This account has no active company access.';
+            throw ValidationException::withMessages(['email' => $msg]);
         }
 
         return $user;
@@ -76,7 +80,11 @@ class AuthService
         $user->setRelation('companies', app(CompanyService::class)->accessibleCompanies($user));
         if (! config('erp.single_user_mode', false) && ! $user->isSuperAdmin() && $user->companies->isEmpty()) {
             $this->logout($session);
-            abort(403, 'No active company access is available.');
+            $hasInactiveCompany = $user->companies()->where('companies.is_active', false)->exists();
+            $msg = $hasInactiveCompany
+                ? 'Your company account is currently deactivated. Please contact your Tax Consultant / Administrator.'
+                : 'No active company access is available.';
+            abort(403, $msg);
         }
 
         return $user;

@@ -16,15 +16,7 @@ class CustomerService
 {
     public function company(User $user, int $companyId, bool $write = false): Company
     {
-        abort_unless($user->is_active, 403);
-        $company = $user->companies()->where('companies.id', $companyId)
-            ->where('companies.is_active', true)->wherePivot('is_active', true)
-            ->select('companies.*')->firstOrFail();
-        if ($write) {
-            abort_unless($company->pivot->role === CompanyRole::Owner, 403);
-        }
-
-        return $company;
+        return app(CompanyService::class)->workspace($user, $companyId, $write);
     }
 
     /** @param array<string, mixed> $filters */

@@ -4,6 +4,7 @@ export type AuthCompany = {
     address: string | null; technical_contact: string | null; invoice_series: string;
     currency: string; fbr_environment: "sandbox" | "production"; role: string;
     business_activity: string[]; sector: string[]; is_sales_tax_profile_retailer: boolean; allowed_sandbox_scenarios: string[];
+    is_active?: boolean;
 };
 export type AuthUser = { id: number; name: string; email: string; phone: string | null; is_super_admin?: boolean; companies: AuthCompany[] };
 export type LoginData = { email: string; password: string };

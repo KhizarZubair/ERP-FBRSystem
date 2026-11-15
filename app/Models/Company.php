@@ -9,12 +9,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use InvalidArgumentException;
 use RuntimeException;
 
 #[Fillable(['name', 'ntn_cnic', 'province', 'address', 'contact_person', 'email', 'phone', 'technical_contact', 'logo_path', 'invoice_series', 'currency', 'fbr_environment', 'business_activity', 'sector', 'is_sales_tax_profile_retailer', 'allowed_sandbox_scenarios', 'is_active'])]
 class Company extends Model
 {
+    use SoftDeletes;
     protected static function booted(): void
     {
         static::creating(function (): void {

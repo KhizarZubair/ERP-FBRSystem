@@ -11,11 +11,12 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable(['customer_id', 'number', 'invoice_type', 'invoice_date', 'due_date', 'scenario_id', 'reference_invoice_no', 'notes', 'currency', 'status', 'fbr_status', 'fbr_environment', 'fbr_invoice_number', 'seller_business_name', 'seller_ntn_cnic', 'seller_province', 'seller_address', 'buyer_business_name', 'buyer_ntn_cnic', 'buyer_registration_type', 'buyer_province', 'buyer_address', 'value_sales_excluding_st', 'sales_tax_applicable', 'sales_tax_withheld_at_source', 'extra_tax', 'further_tax', 'fed_payable', 'discount', 'total_values', 'approved_at', 'issued_at', 'fbr_accepted_at'])]
 class Invoice extends Model
 {
-    use BelongsToCompany;
+    use BelongsToCompany, SoftDeletes;
 
     protected function casts(): array
     {

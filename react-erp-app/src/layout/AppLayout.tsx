@@ -61,6 +61,13 @@ export function Sidebar({
                 <>
                     <p className="eyebrow">{user?.is_super_admin ? "CLIENT WORKSPACE" : "BUSINESS WORKSPACE"}</p>
                     <div className="workspace-name">{companyName}</div>
+                    {activeCompany?.is_active === false && (
+                        <div style={{ marginTop: "4px", marginBottom: "4px" }}>
+                            <span style={{ display: "inline-block", fontSize: "11px", fontWeight: 700, background: "#fef3c7", color: "#92400e", padding: "2px 8px", borderRadius: "4px" }}>
+                                Deactivated
+                            </span>
+                        </div>
+                    )}
                     <p className="sidebar-muted">{user?.is_super_admin ? "Viewing as Super Admin" : "Company workspace • Pakistan"}</p>
                     <nav aria-label="Main navigation">
                         {user?.is_super_admin && (
@@ -195,6 +202,9 @@ export function AppLayout({
                             <Badge tone="neutral">
                                 {isSuperAdminPortal ? "Super Admin (Lawyer)" : "Viewing as Super Admin"}
                             </Badge>
+                        )}
+                        {!isSuperAdminPortal && activeCompany?.is_active === false && (
+                            <Badge tone="warning">Deactivated</Badge>
                         )}
                         <Badge tone="success">
                             {path === "/admin/overview" ? "Admin Overview"

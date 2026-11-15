@@ -214,7 +214,6 @@ class CompanyService
     {
         if ($user->isSuperAdmin()) {
             return Company::query()
-                ->where('is_active', true)
                 ->select([
                     'companies.id', 'companies.name', 'companies.ntn_cnic', 'companies.province',
                     'companies.address', 'companies.contact_person', 'companies.email', 'companies.phone',
@@ -222,6 +221,7 @@ class CompanyService
                     'companies.fbr_environment', 'companies.business_activity', 'companies.sector',
                     'companies.is_sales_tax_profile_retailer',
                     'companies.allowed_sandbox_scenarios',
+                    'companies.is_active',
                 ])
                 ->orderBy('companies.id')
                 ->get();
@@ -237,6 +237,7 @@ class CompanyService
                 'companies.fbr_environment', 'companies.business_activity', 'companies.sector',
                 'companies.is_sales_tax_profile_retailer',
                 'companies.allowed_sandbox_scenarios',
+                'companies.is_active',
             ])
             ->orderBy('companies.id')
             ->when(config('erp.single_user_mode', false), fn ($query) => $query->limit(1))
@@ -248,7 +249,7 @@ class CompanyService
         abort_unless($user->is_active, 403);
 
         if ($user->isSuperAdmin()) {
-            $company = Company::where('id', $companyId)->where('is_active', true)->firstOrFail();
+            $company = Company::where('id', $companyId)->firstOrFail();
             $pivot = new CompanyUser(['role' => CompanyRole::Owner->value, 'is_active' => true]);
             $pivot->setRelation('company', $company);
             $company->setRelation('pivot', $pivot);
@@ -272,7 +273,6 @@ class CompanyService
 
         if ($user->isSuperAdmin()) {
             $company = Company::where('companies.id', $companyId)
-                ->where('companies.is_active', true)
                 ->with(['fbrIntegrations', 'scenarioCertification'])
                 ->firstOrFail();
             $pivot = new CompanyUser(['role' => CompanyRole::Owner->value, 'is_active' => true]);
@@ -284,6 +284,25 @@ class CompanyService
 
         return $user->companies()->where('companies.is_active', true)->wherePivot('is_active', true)
             ->where('companies.id', $companyId)->with(['fbrIntegrations', 'scenarioCertification'])->firstOrFail();
+    }
+
+    public function toggleCompanyStatus(User $superAdmin, int $companyId): Company
+    {
+        abort_unless($superAdmin->isSuperAdmin(), 403, 'Only Super Admin can toggle company active status.');
+
+        $company = Company::findOrFail($companyId);
+        $company->is_active = ! (bool) $company->is_active;
+        $company->save();
+
+        return $company;
+    }
+
+    public function deleteCompany(User $superAdmin, int $companyId): void
+    {
+        abort_unless($superAdmin->isSuperAdmin(), 403, 'Only Super Admin can delete a client company.');
+
+        $company = Company::findOrFail($companyId);
+        $company->delete();
     }
 
     /** @param array<string, mixed> $data */
