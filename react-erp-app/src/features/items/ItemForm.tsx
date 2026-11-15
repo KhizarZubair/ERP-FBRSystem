@@ -1,8 +1,8 @@
 import { FbrReferenceSelect } from "./FbrReferenceSelect";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { Button, Card, FormActions, Input, Notice, Select, Textarea } from "../../components/ui";
-import { ApiError } from "../../lib/api";
+import { api, ApiError } from "../../lib/api";
 import type { FieldErrors } from "../../lib/api";
 import { itemApi, itemDraft } from "./itemApi";
 import type { ItemDraft, ItemRecord } from "./itemApi";
@@ -13,10 +13,32 @@ export function ItemForm({ companyId, item, onSaved, onCancel }: {
 }) {
     const [draft, setDraft] = useState(() => ({ ...itemDraft(item), ...(!item ? { tax_rate_percent: "18", tax_rate_label: "18%", sku: "", unit_of_measurement: "", sale_type: "" } : {}) }));
     const [unitPrice, setUnitPrice] = useState(item?.current_unit_price || "");
+    const [dynamicRates, setDynamicRates] = useState<{ code: string; description: string }[]>([]);
+    const [ratesLoading, setRatesLoading] = useState(false);
     const [errors, setErrors] = useState<FieldErrors>({});
     const [message, setMessage] = useState("");
     const [busy, setBusy] = useState(false);
     const lock = useRef(false);
+
+    useEffect(() => {
+        let active = true;
+        setRatesLoading(true);
+        const saleTypeParam = draft.sale_type ? `&sale_type=${encodeURIComponent(draft.sale_type)}` : "";
+        api<{ data: { code: string; description: string }[] }>(`/api/v1/companies/${companyId}/fbr/rates?limit=50${saleTypeParam}`)
+            .then(res => {
+                if (active && res.data && res.data.length > 0) {
+                    setDynamicRates(res.data);
+                }
+            })
+            .catch(() => {
+                // Fallback kept
+            })
+            .finally(() => {
+                if (active) setRatesLoading(false);
+            });
+        return () => { active = false; };
+    }, [companyId, draft.sale_type]);
+
     function change(key: keyof ItemDraft, value: string | boolean) {
         setDraft(current => ({ ...current, [key]: value })); setErrors(current => ({ ...current, [key]: [] }));
     }
@@ -25,6 +47,14 @@ export function ItemForm({ companyId, item, onSaved, onCancel }: {
         onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => change(key, event.target.value),
     });
     const isExemptOrZero = draft.tax_rate_label === "Exempt" || draft.tax_rate_label === "0%" || draft.tax_rate_percent === "0";
+    
+    const standardRates = ["18%", "0%", "Exempt", "1%", "5%", "10%", "12%", "15%"];
+    const rateOptions = dynamicRates.length > 0
+        ? dynamicRates.map(r => r.description)
+        : standardRates;
+    if (draft.tax_rate_label && !rateOptions.includes(draft.tax_rate_label)) {
+        rateOptions.unshift(draft.tax_rate_label);
+    }
 
     return <Card title={item ? "Edit Product" : "Create Product"}><form onSubmit={async event => {
         event.preventDefault(); if (lock.current) return;
@@ -60,7 +90,18 @@ export function ItemForm({ companyId, item, onSaved, onCancel }: {
                 <HsCodeSelect companyId={companyId} value={draft.hs_code} onChange={code => { change("hs_code", code); if (code && code !== draft.hs_code) change("unit_of_measurement", ""); }} error={errors.hs_code?.[0]} />
                 <FbrReferenceSelect label="Unit of measurement" path={`/api/v1/companies/${companyId}/fbr/units?limit=50${draft.hs_code ? "&hs_code=" + encodeURIComponent(draft.hs_code) : ""}`} value={draft.unit_of_measurement} onChange={value => change("unit_of_measurement", value)} error={errors.unit_of_measurement?.[0]} autoSelectSingle />
                 <FbrReferenceSelect label="Sale type" path={`/api/v1/companies/${companyId}/fbr/sale-types?limit=50`} value={draft.sale_type} onChange={value => change("sale_type", value)} error={errors.sale_type?.[0]} autoSelectStandardRate />
-                <Select label="Sales Tax Rate" required options={["18%", "0%", "Exempt", "1%", "5%", "10%", "12%", "15%"]} value={draft.tax_rate_label} onChange={event => { change("tax_rate_label", event.target.value); change("tax_rate_percent", event.target.value === "Exempt" ? "0" : event.target.value.replace("%", "")); }} />
+                <Select
+                    label={`Sales Tax Rate${ratesLoading ? " (Loading FBR rates…)" : ""}`}
+                    required
+                    options={rateOptions}
+                    value={draft.tax_rate_label}
+                    onChange={event => {
+                        const val = event.target.value;
+                        change("tax_rate_label", val);
+                        const numericPercent = val.toLowerCase().includes("exempt") ? "0" : val.replace(/[^0-9.]/g, "");
+                        change("tax_rate_percent", numericPercent || "0");
+                    }}
+                />
                 <Input label="Unit Price (Excl. Tax)" type="number" min="0.01" step="0.01" required placeholder="e.g. 500.00" value={unitPrice} error={errors.unit_price?.[0]} onChange={event => { setUnitPrice(event.target.value); setErrors(current => ({ ...current, unit_price: [] })); }} />
 
                 <div style={{ gridColumn: "1 / -1", marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid var(--border-color, #e2e8f0)" }}>

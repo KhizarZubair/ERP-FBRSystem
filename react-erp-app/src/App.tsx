@@ -15,6 +15,7 @@ import { InvoicesPage } from "./features/invoices/InvoicesPage";
 import { InvoiceForm } from "./features/invoices/InvoiceForm";
 import { InvoiceReview } from "./features/invoices/InvoiceReview";
 import { CompanyPage } from "./features/company/CompanyPage";
+import { SuperAdminCompaniesPage } from "./features/company/SuperAdminCompaniesPage";
 import { Button, PageHeader } from "./components/ui";
 
 function Workspace() {
@@ -27,6 +28,7 @@ function Workspace() {
         page = <ItemsPage key={path} path={path} />;
     else if (path === "/stock") page = <StockPage />;
     else if (path === "/company") page = <CompanyPage />;
+    else if (path === "/admin/companies") page = <SuperAdminCompaniesPage />;
     else if (path === "/invoices") page = <InvoicesPage />;
     else if (path === "/invoices/new") page = <InvoiceForm key={path} />;
     else if (/^\/invoices\/[^/]+\/review$/.test(path))

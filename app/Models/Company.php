@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -17,7 +18,7 @@ class Company extends Model
     protected static function booted(): void
     {
         static::creating(function (): void {
-            if (config('erp.single_user_mode', true) && static::query()->count() >= 1) {
+            if (config('erp.single_user_mode', false) && static::query()->count() >= 1) {
                 throw new RuntimeException('System restricted: only one company profile is allowed.');
             }
         });
@@ -92,5 +93,10 @@ class Company extends Model
     public function fbrSubmissions(): HasMany
     {
         return $this->hasMany(FbrSubmission::class);
+    }
+
+    public function scenarioCertification(): HasOne
+    {
+        return $this->hasOne(CompanyScenarioCertification::class);
     }
 }

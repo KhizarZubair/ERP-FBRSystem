@@ -3,7 +3,7 @@ export type CompanyDetails = {
  id:number; name:string; ntn_cnic:string|null; seller_ntn?:string|null; seller_cnic:string|null; province:string|null; address:string|null;
  contact_person:string|null; email:string|null; phone:string|null;
  invoice_series:string; currency:string; fbr_environment:"sandbox"|"production"; can_edit:boolean;
- business_activity:string[]; sector:string[]; is_sales_tax_profile_retailer:boolean; allowed_sandbox_scenarios:string[];
+ business_activity:string[]; sector:string[]; is_sales_tax_profile_retailer:boolean; allowed_sandbox_scenarios:string[]; certified_sandbox_scenarios?:string[];
  supported_scenarios:Record<string,{description:string;sale_type:string;buyer_registration_type:string}>;
  business_activities:string[]; sectors:string[];
  credentials:Record<"sandbox"|"production",{configured:boolean;status:string}>;

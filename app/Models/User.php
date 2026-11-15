@@ -24,10 +24,15 @@ class User extends Authenticatable
     protected static function booted(): void
     {
         static::creating(function (): void {
-            if (config('erp.single_user_mode', true) && static::query()->count() >= 1) {
+            if (config('erp.single_user_mode', false) && static::query()->count() >= 1) {
                 throw new RuntimeException('System restricted: only one master user is allowed.');
             }
         });
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return (int) $this->id === 1;
     }
 
     public function companies(): BelongsToMany

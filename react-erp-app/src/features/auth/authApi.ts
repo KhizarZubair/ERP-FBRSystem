@@ -5,7 +5,7 @@ export type AuthCompany = {
     currency: string; fbr_environment: "sandbox" | "production"; role: string;
     business_activity: string[]; sector: string[]; is_sales_tax_profile_retailer: boolean; allowed_sandbox_scenarios: string[];
 };
-export type AuthUser = { id: number; name: string; email: string; phone: string | null; companies: AuthCompany[] };
+export type AuthUser = { id: number; name: string; email: string; phone: string | null; is_super_admin?: boolean; companies: AuthCompany[] };
 export type LoginData = { email: string; password: string };
 export type RegisterData = LoginData & { name: string; phone: string; password_confirmation: string };
 export type RegistrationStatus = { data: { can_register: boolean } };

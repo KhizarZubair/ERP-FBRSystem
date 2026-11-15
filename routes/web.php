@@ -75,7 +75,10 @@ Route::prefix('api/company')->middleware('auth:sanctum')->group(function (): voi
 });
 
 Route::prefix('api/v1/companies')->middleware('auth:sanctum')->group(function (): void {
+    Route::get('/', [CompanyController::class, 'index']);
     Route::post('/', [CompanyController::class, 'store']);
+    Route::post('enroll', [CompanyController::class, 'enroll']);
+    Route::post('{company}/switch', [CompanyController::class, 'switchWorkspace'])->whereNumber('company');
     Route::get('{company}', [CompanyController::class, 'show'])->whereNumber('company');
     Route::put('{company}', [CompanyController::class, 'update'])->whereNumber('company');
     Route::get('{company}/members', [CompanyController::class, 'members'])->whereNumber('company');

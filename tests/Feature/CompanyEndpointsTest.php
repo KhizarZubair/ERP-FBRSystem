@@ -177,4 +177,63 @@ class CompanyEndpointsTest extends TestCase
         $this->postJson($url, ['email' => $inactive->email, 'role' => 'member'])
             ->assertUnprocessable()->assertJsonValidationErrors('email');
     }
+
+    public function test_super_admin_lists_all_companies_and_switches_workspace(): void
+    {
+        $superAdmin = User::firstOrCreate(['id' => 1], [
+            'name' => 'Lawyer Admin',
+            'email' => 'lawyer@example.com',
+            'password' => bcrypt('Password@123'),
+            'is_active' => true,
+        ]);
+
+        $otherUser = User::factory()->create()->fresh();
+        $companyA = app(CompanyService::class)->createOwnedCompany($otherUser, ['company_name' => 'Client Alpha '.uniqid()]);
+
+        // Non-super-admin cannot enroll or switch workspaces
+        $this->actingAs($otherUser)->postJson('/api/v1/companies/enroll', [])->assertForbidden();
+        $this->postJson('/api/v1/companies/'.$companyA->id.'/switch')->assertForbidden();
+
+        // Non-super-admin lists only their own company
+        $otherList = $this->actingAs($otherUser)->getJson('/api/v1/companies')->assertOk();
+        $this->assertCount(1, $otherList->json('data'));
+
+        // Super Admin can list all companies
+        $response = $this->actingAs($superAdmin)->getJson('/api/v1/companies')->assertOk();
+        $this->assertNotEmpty($response->json('data'));
+
+        // Super Admin can switch workspace to Company A
+        $switchRes = $this->postJson('/api/v1/companies/'.$companyA->id.'/switch')->assertOk();
+        $this->assertSame($companyA->id, $switchRes->json('company.id'));
+    }
+
+    public function test_super_admin_enrolls_new_client_company_atomically(): void
+    {
+        $superAdmin = User::firstOrCreate(['id' => 1], [
+            'name' => 'Lawyer Admin',
+            'email' => 'lawyer@example.com',
+            'password' => bcrypt('Password@123'),
+            'is_active' => true,
+        ]);
+
+        $enrollData = [
+            'name' => 'Automated Client Corp '.uniqid(),
+            'seller_ntn' => '7654321',
+            'seller_cnic' => '3520199999999',
+            'province' => 'Punjab',
+            'address' => 'Gulberg, Lahore',
+            'email' => 'client@corp.pk',
+            'phone' => '042-35789000',
+            'business_activity' => ['Service Provider', 'Wholesaler'],
+            'sector' => ['Services', 'Wholesale / Retails'],
+            'is_sales_tax_profile_retailer' => false,
+            'sandbox_token' => 'sb-test-token-12345',
+            'client_name' => 'Client Rep',
+            'client_email' => 'rep_'.uniqid().'@corp.pk',
+            'client_password' => 'Password@123',
+        ];
+
+        $res = $this->actingAs($superAdmin)->postJson('/api/v1/companies/enroll', $enrollData)->assertCreated();
+        $this->assertStringStartsWith('Automated Client Corp', $res->json('company.name'));
+    }
 }

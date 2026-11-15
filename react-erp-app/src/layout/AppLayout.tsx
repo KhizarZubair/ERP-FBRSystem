@@ -32,6 +32,18 @@ export function Sidebar({
             <div className="workspace-name">{companyName}</div>
                         <p className="sidebar-muted">Company workspace • Pakistan</p>
             <nav aria-label="Main navigation">
+                {user?.is_super_admin && (
+                    <a
+                        key="/admin/companies"
+                        href="#/admin/companies"
+                        onClick={close}
+                        aria-current={path.startsWith("/admin/companies") ? "page" : undefined}
+                        className={`${path.startsWith("/admin/companies") ? "nav-link active" : "nav-link"}`}
+                        style={{ fontWeight: 600, color: "#38bdf8" }}
+                    >
+                        ⚖️ Client Companies Hub
+                    </a>
+                )}
                 {links.map(([href, label]) => {
                     const requiresCompany = ["/customers", "/items", "/invoices", "/stock"].includes(href);
                     const disabled = requiresCompany && !isCompanyConfigured;
@@ -78,9 +90,11 @@ export function AppLayout({
     companyName: string;
     children: ReactNode;
 }) {
+    const { user } = useAuth();
     const [open, setOpen] = useState(false);
+    const allLinks = [["/admin/companies", "Client Companies Hub"], ...links];
     const title =
-        links.find(([href]) => path.startsWith(href))?.[1] || "Workspace";
+        allLinks.find(([href]) => path.startsWith(href))?.[1] || "Workspace";
     return (
         <div className="app-shell">
             <a
@@ -108,7 +122,7 @@ export function AppLayout({
             </aside>
             <main id="main-content" tabIndex={-1} className="workspace">
                 <div className="topbar">
-                    <div className="breadcrumb">
+                    <div className="breadcrumb" style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
                         <Button
                             variant="quiet"
                             className="mobile-menu"
@@ -123,11 +137,30 @@ export function AppLayout({
                             <span className="breadcrumb-separator">/</span>{" "}
                             {title}
                         </span>
+                        {user?.is_super_admin && path !== "/admin/companies" && (
+                            <a
+                                href="#/admin/companies"
+                                style={{
+                                    fontSize: "0.75rem",
+                                    padding: "2px 8px",
+                                    backgroundColor: "rgba(14, 165, 233, 0.15)",
+                                    border: "1px solid rgba(14, 165, 233, 0.4)",
+                                    borderRadius: "4px",
+                                    color: "#0284c7",
+                                    textDecoration: "none",
+                                    fontWeight: 500,
+                                }}
+                            >
+                                ⚖️ Switch Client Company
+                            </a>
+                        )}
                     </div>
-                    <Badge tone="success">{path === "/company" ? "Company profile" : path.startsWith("/customers") ? "Customer records" : path.startsWith("/items") ? "Item records" : path.startsWith("/invoices") ? "Invoice records" : path === "/stock" ? "Stock ledger" : "Live overview"}</Badge>
+                    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                        {user?.is_super_admin && <Badge tone="neutral">Tax Consultant / Lawyer</Badge>}
+                        <Badge tone="success">{path === "/admin/companies" ? "Client companies" : path === "/company" ? "Company profile" : path.startsWith("/customers") ? "Customer records" : path.startsWith("/items") ? "Item records" : path.startsWith("/invoices") ? "Invoice records" : path === "/stock" ? "Stock ledger" : "Live overview"}</Badge>
+                    </div>
                 </div>
                 {children}
-                
             </main>
         </div>
     );

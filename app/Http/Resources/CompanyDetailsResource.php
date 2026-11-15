@@ -26,6 +26,7 @@ class CompanyDetailsResource extends JsonResource
             'business_activity' => $this->business_activity ?? [], 'sector' => $this->sector ?? [],
             'is_sales_tax_profile_retailer' => (bool) $this->is_sales_tax_profile_retailer,
             'allowed_sandbox_scenarios' => app(FbrScenarioRegistry::class)->allowedCodesForCompany($this->resource),
+            'certified_sandbox_scenarios' => $this->scenarioCertification?->passed_scenarios ?? [],
             'supported_scenarios' => config('fbr.supported_scenarios'),
             'business_activities' => config('fbr.business_activities'), 'sectors' => config('fbr.sectors'),
             'can_edit' => $this->pivot->role->value === 'owner', 'credentials' => $credentials,

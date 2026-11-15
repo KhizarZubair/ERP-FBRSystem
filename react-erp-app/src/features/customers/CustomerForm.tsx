@@ -8,7 +8,7 @@ import { navigate } from "../../lib/navigation";
 import { customerApi, customerDraft } from "./customerApi";
 import type { CustomerDraft, CustomerRecord } from "./customerApi";
 
-type BuyerVerification = { data: { active: boolean; status: string; registration_type: string; source: string } };
+type BuyerVerification = { data: { active: boolean; status: string; registration_type: string; source: string; is_offline?: boolean; message?: string } };
 
 export function CustomerForm({ companyId, customer }: { companyId: number; customer?: CustomerRecord }) {
     const [draft, setDraft] = useState(() => customerDraft(customer));
@@ -35,10 +35,10 @@ export function CustomerForm({ companyId, customer }: { companyId: number; custo
     const registrationNumber = String(draft.ntn_cnic || "").trim();
     const validRegistrationNumber = /^(?:[0-9]{7,8}|[0-9]{13})$/.test(registrationNumber);
     const isVerified = Boolean(
-        (registrationNumber && verifiedNumber === registrationNumber && verification) ||
-        (customer && draft.ntn_cnic === customer.ntn_cnic && customer.ntn_cnic)
+        (registrationNumber && verifiedNumber === registrationNumber && verification?.active) ||
+        (customer && draft.ntn_cnic === customer.ntn_cnic && customer.ntn_cnic && customer.registration_type === "Registered")
     );
-    const canSave = !busy && isVerified;
+    const canSave = !busy;
     async function verifyBuyer() {
         if (!validRegistrationNumber || verifying) return;
         setVerifying(true); setMessage(""); setVerification(undefined);
@@ -47,24 +47,32 @@ export function CustomerForm({ companyId, customer }: { companyId: number; custo
             const result = response.data;
             setVerification(result);
             setVerifiedNumber(registrationNumber);
-            change("registration_type", result.active && result.registration_type.toLowerCase() === "registered" ? "Registered" : "Unregistered");
-            if (!result.active) setMessage("FBR did not confirm an active taxpayer. Customer will be marked Unregistered.");
+            if (result.is_offline) {
+                change("registration_type", "Unregistered");
+                setMessage("FBR verification gateway is currently slow or unreachable. You can save this customer locally now as unverified and re-verify before invoice generation.");
+            } else if (result.active && result.registration_type?.toLowerCase() === "registered") {
+                change("registration_type", "Registered");
+            } else {
+                change("registration_type", "Unregistered");
+                setMessage("FBR did not confirm an active taxpayer. Customer will be marked Unregistered.");
+            }
         } catch (error) {
             setVerifiedNumber("");
             setVerification(undefined);
-            setMessage(error instanceof Error ? error.message : "FBR verification failed. Please retry.");
+            change("registration_type", "Unregistered");
+            setMessage("FBR verification gateway is currently unreachable. Customer can be saved locally as unverified and re-verified later.");
         } finally { setVerifying(false); }
     }
     return <Card title={customer ? "Edit Customer" : "Create Customer"}><form onSubmit={async event => {
         event.preventDefault();
         if (lock.current || !canSave) return;
-        if (!isVerified) {
-            setMessage("Please verify this NTN/CNIC with FBR before saving the customer.");
-            return;
-        }
         lock.current = true; setBusy(true); setMessage(""); setErrors({});
         try {
-            await customerApi.save(companyId, draft, customer?.id);
+            const payload: CustomerDraft = {
+                ...draft,
+                registration_type: draft.registration_type || (isVerified ? "Registered" : "Unregistered"),
+            };
+            await customerApi.save(companyId, payload, customer?.id);
             navigate("/customers");
         } catch (error) {
             setMessage(error instanceof Error ? error.message : "Could not save customer.");
@@ -79,12 +87,14 @@ export function CustomerForm({ companyId, customer }: { companyId: number; custo
                 <div className="field">
                     <label htmlFor="customer-ntn-cnic">NTN / CNIC</label>
                     <input id="customer-ntn-cnic" name="ntn_cnic" value={draft.ntn_cnic || ""} inputMode="numeric" pattern="([0-9]{7,8}|[0-9]{13})" maxLength={13}
-                        placeholder="7 or 8-digit NTN or 13-digit CNIC" aria-invalid={!!errors.ntn_cnic}
+                        placeholder="7 or 8-digit NTN or 13-digit CNIC (optional)" aria-invalid={!!errors.ntn_cnic}
                         onChange={event => change("ntn_cnic", event.target.value)} />
-                    <small className={errors.ntn_cnic ? "field-error" : "field-hint"}>{errors.ntn_cnic?.[0] || "Enter digits only, without dashes or spaces. Click 'Verify with FBR' below to enable saving."}</small>
+                    <small className={errors.ntn_cnic ? "field-error" : "field-hint"}>{errors.ntn_cnic?.[0] || "Digits only without dashes. Optional for unregistered walk-in customers."}</small>
                     {verification && verifiedNumber === registrationNumber && <div className="customer-verification-status">
-                        <Badge tone={verification.active ? "success" : "warning"}>{verification.active ? "Taxpayer Verified: Active" : "Unregistered Buyer"}</Badge>
-                        <span>{verification.active ? verification.registration_type : "Registration not active"} · Checked via FBR</span>
+                        <Badge tone={verification.active ? "success" : "warning"}>
+                            {verification.is_offline ? "FBR Offline (Unverified)" : verification.active ? "Taxpayer Verified: Active" : "Unregistered Buyer"}
+                        </Badge>
+                        <span>{verification.is_offline ? "Gateway offline" : verification.active ? verification.registration_type : "Registration not active"} · FBR Check</span>
                     </div>}
                 </div>
                 <Select label="Province" required options={[{ value: "", label: "Select province" }, ...provinces]} {...field("province")} />

@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'single_user_mode' => true,
+    'single_user_mode' => env('ERP_SINGLE_USER_MODE', false),
     'admin_default_name' => env('ADMIN_DEFAULT_NAME', 'System Administrator'),
     'admin_default_email' => env('ADMIN_DEFAULT_EMAIL', 'admin@erp.local'),
     'admin_default_password' => env('ADMIN_DEFAULT_PASSWORD'),

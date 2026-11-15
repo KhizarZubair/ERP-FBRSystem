@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { DataTable } from "../../components/DataTable";
 import { Badge, Button, Card, Notice, PageHeader, Select , RefreshButton , SearchField } from "../../components/ui";
 import { navigate } from "../../lib/navigation";
-import { ApiError } from "../../lib/api";
+import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../auth/AuthContext";
 import { CustomerForm } from "./CustomerForm";
 import { customerApi } from "./customerApi";
@@ -42,7 +42,32 @@ function CustomerDirectory({ companyId, canEdit }: { companyId: number; canEdit:
     const [busy, setBusy] = useState<number | null>(null);
     const [pendingStatus, setPendingStatus] = useState<CustomerRecord | null>(null);
     const [pendingDelete, setPendingDelete] = useState<CustomerRecord | null>(null);
+    const [verifyingId, setVerifyingId] = useState<number | null>(null);
     const lock = useRef(false);
+
+    async function handleReverify(customer: CustomerRecord) {
+        if (!customer.ntn_cnic) return;
+        setVerifyingId(customer.id);
+        setError("");
+        setMessage("");
+        try {
+            const res = await api<{ data: { active: boolean; status: string; registration_type: string; is_offline?: boolean } }>(
+                `/api/v1/companies/${companyId}/fbr/buyer-verification?registration_number=${encodeURIComponent(customer.ntn_cnic)}&date=${new Date().toISOString().slice(0, 10)}`
+            );
+            if (res.data.is_offline) {
+                setMessage(`FBR gateway is unreachable. Could not update verification status for "${customer.name}".`);
+            } else {
+                const newType = res.data.active && res.data.registration_type?.toLowerCase() === "registered" ? "Registered" : "Unregistered";
+                await customerApi.save(companyId, { ...customer, registration_type: newType }, customer.id);
+                setMessage(`"${customer.name}" verified with FBR as ${newType}.`);
+                setRevision(v => v + 1);
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "FBR verification failed.");
+        } finally {
+            setVerifyingId(null);
+        }
+    }
     useEffect(() => {
         const controller = new AbortController();
         const timer = window.setTimeout(() => {
@@ -94,11 +119,25 @@ function CustomerDirectory({ companyId, canEdit }: { companyId: number; canEdit:
                 columns={[
                     { key: "name", label: "Customer", sortValue: customer => customer.name, render: customer => <><strong>{customer.name}</strong><div className="cell-subtitle">{customer.code}</div></> },
                     { key: "ntn", label: "NTN / CNIC", render: customer => customer.ntn_cnic || "Not provided" },
-                    { key: "registration_type", label: "Registration", sortValue: customer => customer.registration_type, render: customer => customer.registration_type },
+                    { key: "registration_type", label: "Registration", sortValue: customer => customer.registration_type, render: customer => (
+                        <Badge tone={customer.registration_type === "Registered" ? "success" : "neutral"}>
+                            {customer.registration_type || "Unregistered"}
+                        </Badge>
+                    ) },
                     { key: "province", label: "Province", sortValue: customer => customer.province, render: customer => customer.province },
                     { key: "status", label: "Status", render: customer => <Badge tone={customer.is_active ? "success" : "neutral"}>{customer.is_active ? "Active" : "Inactive"}</Badge> },
                     { key: "actions", label: "Actions", render: customer => <div className="actions">
                         <Button variant="quiet" onClick={() => navigate(`/customers/${customer.id}`)}>{canEdit ? "Edit" : "View"}</Button>
+                        {canEdit && customer.ntn_cnic && (
+                            <Button
+                                variant="quiet"
+                                disabled={busy !== null || verifyingId !== null}
+                                onClick={() => void handleReverify(customer)}
+                                title="Re-check active taxpayer status with FBR"
+                            >
+                                {verifyingId === customer.id ? "Checking…" : "Re-verify"}
+                            </Button>
+                        )}
                         {canEdit && <><Button variant="quiet" disabled={busy !== null} onClick={() => { setError(""); setPendingStatus(customer); }}>{customer.is_active ? "Deactivate" : "Activate"}</Button>
                             <Button variant="danger" disabled={busy !== null} onClick={() => { setError(""); setPendingDelete(customer); }}>Delete</Button></>}
                     </div> },

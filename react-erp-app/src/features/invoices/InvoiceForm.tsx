@@ -42,6 +42,9 @@ export function InvoiceForm({ id }: { id?: string }) {
     const sellerIdentity = original ? original.seller_ntn_cnic : seller?.ntn_cnic;
     const sellerAddress = original ? original.seller_address : seller?.address;
     const update = (key: keyof Omit<InvoiceDraft, "lines">, value: string) => setDraft(valueBefore => ({ ...valueBefore, [key]: value }));
+
+    const hasCert = Boolean(seller?.certified_sandbox_scenarios && seller.certified_sandbox_scenarios.length > 0);
+    const eligibleScenarios = hasCert ? (seller?.certified_sandbox_scenarios ?? []) : (seller?.allowed_sandbox_scenarios ?? []);
     async function showPreview() {
         if (lock.current) return; lock.current = true; setBusy(true); setError("");
         try { const result = await invoiceApi.preview(company.id, { ...draft, lines: invoiceLines }, id); setPreview(result.data); }
@@ -87,8 +90,8 @@ export function InvoiceForm({ id }: { id?: string }) {
                     <Input label="Local invoice number" readOnly value={original?.number || "Assigned on save"} />
                     <Input label="Invoice date" required type="date" value={draft.invoice_date} onChange={event => update("invoice_date", event.target.value)} />
                     <Input label="Invoice type" readOnly value="Sale Invoice" />
-                    <Select label="Sandbox scenario" required={seller.fbr_environment === "sandbox"} disabled={seller.fbr_environment !== "sandbox"}
-                        options={[{ value: "", label: seller.fbr_environment === "sandbox" ? "Select scenario" : "Not used in production" }, ...Object.entries(seller.supported_scenarios).filter(([code]) => seller.allowed_sandbox_scenarios.includes(code)).map(([value, item]) => ({ value, label: `${value} - ${item.description}` }))]}
+                    <Select label={`Sandbox scenario${hasCert ? " (DB Certified)" : ""}`} required={seller.fbr_environment === "sandbox"} disabled={seller.fbr_environment !== "sandbox"}
+                        options={[{ value: "", label: seller.fbr_environment === "sandbox" ? (hasCert ? "Select certified scenario" : "Select scenario (Sector eligible)") : "Not used in production" }, ...Object.entries(seller.supported_scenarios).filter(([code]) => eligibleScenarios.includes(code)).map(([value, item]) => ({ value, label: `${value} - ${item.description}${hasCert ? " (Certified ✓)" : ""}` }))]}
                         value={draft.scenario_id} onChange={event => update("scenario_id", event.target.value)} />
                     <CustomerSelect companyId={company.id} value={String(draft.customer_id)}
                         selectedLabel={selectedBuyer?.name || original?.buyer_business_name || ""}
@@ -101,7 +104,7 @@ export function InvoiceForm({ id }: { id?: string }) {
                 </Card>
                 <Card title="Invoice items" actions={<Button variant="secondary" disabled={draft.lines.length >= 100} onClick={() => setDraft(value => ({ ...value, lines: [...value.lines, blankLine()] }))}>Add item</Button>}>
                     <div className="invoice-lines">
-                    {invoiceLines.map((line, index) => <InvoiceLineEditor key={line.client_key || line.id || index} line={line} index={index} companyId={company.id} invoiceDate={draft.invoice_date} canRemove={draft.lines.length > 1}
+                    {invoiceLines.map((line, index) => <InvoiceLineEditor key={line.client_key || line.id || index} line={line} index={index} companyId={company.id} invoiceDate={draft.invoice_date} scenarioId={draft.scenario_id} canRemove={draft.lines.length > 1}
                         onRemove={() => setDraft(value => ({ ...value, lines: value.lines.filter((_, position) => position !== index) }))}
                         onChange={updated => updateLine(index, updated)} />)}
                     </div>

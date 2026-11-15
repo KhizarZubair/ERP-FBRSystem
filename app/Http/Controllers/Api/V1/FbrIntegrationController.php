@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Enums\FbrIntegrationStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Models\CompanyScenarioCertification;
 use App\Services\FbrErrorCatalog;
 use App\Services\FbrScenarioRegistry;
 use Illuminate\Http\Client\ConnectionException;
@@ -62,6 +63,7 @@ class FbrIntegrationController extends Controller
     {
         $this->stateStore()->forget($this->verifiedKey($company));
         $this->stateStore()->forget($this->certificationKey($company));
+        CompanyScenarioCertification::where('company_id', $company->id)->delete();
         $sandbox = $company->fbrIntegrations()->where('environment', 'sandbox')->first();
         if ($sandbox) {
             $sandbox->status = FbrIntegrationStatus::Configured;
@@ -74,6 +76,18 @@ class FbrIntegrationController extends Controller
 
     private function currentCertification(Company $company): array
     {
+        $dbRecord = CompanyScenarioCertification::where('company_id', $company->id)->first();
+        if ($dbRecord !== null) {
+            return [
+                'all_passed' => (bool) $dbRecord->all_passed,
+                'results' => $dbRecord->certification_details ?? [],
+                'token_fingerprint' => $dbRecord->token_fingerprint,
+                'profile_fingerprint' => $dbRecord->profile_fingerprint,
+                'checked_at' => $dbRecord->certified_at?->toIso8601String(),
+                'passed_scenarios' => $dbRecord->passed_scenarios ?? [],
+            ];
+        }
+
         $result = $this->stateStore()->get($this->certificationKey($company), []);
 
         return is_array($result) ? $result : [];
@@ -400,9 +414,30 @@ class FbrIntegrationController extends Controller
         $allPassed = $isFullRun
             && count($results) === count($assignedScenarios)
             && collect($results)->every(fn ($result) => ($result['passed'] ?? false) === true);
+
+        $passedScenarios = collect($results)
+            ->filter(fn ($r) => ($r['passed'] ?? false) === true)
+            ->pluck('scenario_id')
+            ->values()
+            ->all();
+
+        CompanyScenarioCertification::updateOrCreate(
+            ['company_id' => $company->id],
+            [
+                'user_id' => $request->user()?->id,
+                'passed_scenarios' => $passedScenarios,
+                'certification_details' => $results,
+                'all_passed' => $allPassed,
+                'token_fingerprint' => $tokenFingerprint,
+                'profile_fingerprint' => $profileFingerprint,
+                'certified_at' => now(),
+            ]
+        );
+
         $state = [
             'all_passed' => $allPassed,
             'results' => $results,
+            'passed_scenarios' => $passedScenarios,
             'token_fingerprint' => $tokenFingerprint,
             'profile_fingerprint' => $profileFingerprint,
             'checked_at' => now()->toIso8601String(),

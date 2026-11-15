@@ -16,7 +16,7 @@ class AuthService
     {
         try {
             return DB::transaction(function () use ($data): User {
-                if (config('erp.single_user_mode', true) && User::query()->exists()) {
+                if (config('erp.single_user_mode', false) && User::query()->exists()) {
                     abort(403, 'Single-user installation active. Please login with your master credentials.');
                 }
 
@@ -27,7 +27,7 @@ class AuthService
                     'password' => $data['password'],
                 ]);
                 $user->forceFill(['is_active' => true])->save();
-                if (! config('erp.single_user_mode', true)) {
+                if (! config('erp.single_user_mode', false) && ! empty($data['company_name'])) {
                     app(CompanyService::class)->createOwnedCompany($user, $data);
                 }
 
@@ -52,7 +52,7 @@ class AuthService
         $session->regenerate();
         $user = Auth::guard('web')->user();
         $user->setRelation('companies', app(CompanyService::class)->accessibleCompanies($user));
-        if (! config('erp.single_user_mode', true) && $user->companies->isEmpty()) {
+        if (! config('erp.single_user_mode', false) && ! $user->isSuperAdmin() && $user->companies->isEmpty()) {
             $this->logout($session);
             throw ValidationException::withMessages(['email' => 'This account has no active company access.']);
         }
@@ -74,7 +74,7 @@ class AuthService
         }
 
         $user->setRelation('companies', app(CompanyService::class)->accessibleCompanies($user));
-        if (! config('erp.single_user_mode', true) && $user->companies->isEmpty()) {
+        if (! config('erp.single_user_mode', false) && ! $user->isSuperAdmin() && $user->companies->isEmpty()) {
             $this->logout($session);
             abort(403, 'No active company access is available.');
         }
