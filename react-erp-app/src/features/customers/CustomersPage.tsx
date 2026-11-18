@@ -118,7 +118,12 @@ function CustomerDirectory({ companyId, canEdit }: { companyId: number; canEdit:
                     onPage: value => { setPage(value); setLoading(true); }, sort, onSort: (key, descending) => { setSort({ key, descending }); setPage(1); setLoading(true); } }}
                 columns={[
                     { key: "name", label: "Customer", sortValue: customer => customer.name, render: customer => <><strong>{customer.name}</strong><div className="cell-subtitle">{customer.code}</div></> },
-                    { key: "ntn", label: "NTN / CNIC", render: customer => customer.ntn_cnic || "Not provided" },
+                    { key: "ntn", label: "NTN / CNIC", render: customer => {
+                        if (customer.registration_type === "Registered") {
+                            return <div><strong>NTN: {customer.ntn || customer.ntn_cnic || "—"}</strong>{customer.cnic && <div className="cell-subtitle">CNIC: {customer.cnic}</div>}</div>;
+                        }
+                        return <div><span>CNIC: {customer.cnic || customer.ntn_cnic || "—"}</span></div>;
+                    } },
                     { key: "registration_type", label: "Registration", sortValue: customer => customer.registration_type, render: customer => (
                         <Badge tone={customer.registration_type === "Registered" ? "success" : "neutral"}>
                             {customer.registration_type || "Unregistered"}

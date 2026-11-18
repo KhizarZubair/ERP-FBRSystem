@@ -20,7 +20,7 @@ class InvoiceService
     /** @param array<string, mixed> $filters */
     public function listing(Company $company, array $filters): LengthAwarePaginator
     {
-        $query = $company->invoices()->withExists([
+        $query = $company->invoices()->with('items')->withExists([
             'fbrSubmissions as has_submission_history',
             'fbrSubmissions as has_submit_history' => fn ($query) => $query->where('operation', 'submit'),
             'items as has_stock_history' => fn ($query) => $query->whereHas('stockMovements'),
@@ -63,17 +63,18 @@ class InvoiceService
 
     public function editable(Invoice $invoice): bool
     {
-        return $invoice->status === InvoiceStatus::Draft
+        return in_array($invoice->status, [InvoiceStatus::Draft, InvoiceStatus::Approved], true)
             && in_array($invoice->fbr_status, [InvoiceFbrStatus::NotSubmitted, InvoiceFbrStatus::ValidationFailed], true)
             && ! ($invoice->getAttribute('has_submit_history') ?? $invoice->fbrSubmissions()->where('operation', 'submit')->exists())
-            && ! $invoice->getAttribute('has_stock_history');
+            && ! $invoice->getAttribute('has_stock_history')
+            && empty($invoice->fbr_invoice_number);
     }
 
     public function guardWrite(Invoice $invoice, string $version): void
     {
         abort_unless(hash_equals($this->version($invoice), $version), 409, 'Invoice changed in another session. Reload before saving.');
         if (! $this->editable($invoice) || $invoice->items()->whereHas('stockMovements')->exists()) {
-            throw ValidationException::withMessages(['invoice' => 'Only editable drafts without an FBR submission or posted stock can be changed.']);
+            throw ValidationException::withMessages(['invoice' => 'Only unsubmitted invoices without an FBR submission or posted stock can be changed.']);
         }
     }
 
@@ -104,9 +105,21 @@ class InvoiceService
                 $attributes += ['buyer_business_name' => $buyer->name, 'buyer_ntn_cnic' => $buyer->ntn_cnic,
                     'buyer_registration_type' => $buyer->registration_type, 'buyer_province' => $buyer->province, 'buyer_address' => $buyer->address];
             }
+            $statusUpdates = [];
+            if ($invoice->status === InvoiceStatus::Approved) {
+                $statusUpdates = [
+                    'status' => InvoiceStatus::Draft,
+                    'approved_by' => null,
+                    'approved_at' => null,
+                ];
+            }
             $invoice->fill([...$attributes, ...$this->calculator->totals($lines)]);
-            $invoice->forceFill(['fbr_status' => InvoiceFbrStatus::NotSubmitted, 'updated_by' => $user->id,
-                ...($id === null ? ['created_by' => $user->id] : [])])->save();
+            $invoice->forceFill([
+                'fbr_status' => InvoiceFbrStatus::NotSubmitted,
+                'updated_by' => $user->id,
+                ...$statusUpdates,
+                ...($id === null ? ['created_by' => $user->id] : []),
+            ])->save();
             if ($id !== null) {
                 $invoice->items()->delete();
             }
@@ -207,6 +220,9 @@ class InvoiceService
             Company::whereKey($company->id)->lockForUpdate()->firstOrFail();
             $invoice = $company->invoices()->with('items')->whereKey($id)->lockForUpdate()->firstOrFail();
             $this->guardWrite($invoice, $version);
+            if ($invoice->status === InvoiceStatus::Approved) {
+                throw ValidationException::withMessages(['invoice' => 'This invoice is already approved.']);
+            }
             if ($invoice->items->isEmpty()) {
                 throw ValidationException::withMessages(['invoice' => 'An invoice needs at least one saved line before approval.']);
             }
@@ -246,14 +262,23 @@ class InvoiceService
         }, 3);
     }
 
-    public function delete(Company $company, int $id, string $version): void
+    public function delete(Company $company, int $id, ?string $version = null): void
     {
         DB::transaction(function () use ($company, $id, $version): void {
             Company::whereKey($company->id)->lockForUpdate()->firstOrFail();
             $invoice = $company->invoices()->with('items')->whereKey($id)->lockForUpdate()->firstOrFail();
-            $this->guardWrite($invoice, $version);
-            if ($invoice->fbrSubmissions()->exists()) {
-                throw ValidationException::withMessages(['invoice' => 'An invoice with FBR audit history cannot be deleted.']);
+            if ($version !== null) {
+                $this->guardWrite($invoice, $version);
+            } else {
+                abort_unless($this->editable($invoice) && ! $invoice->items()->whereHas('stockMovements')->exists(), 422, 'Only unsubmitted invoices without posted stock can be deleted.');
+            }
+            if ($invoice->fbrSubmissions()->where('operation', 'submit')->exists() || filled($invoice->fbr_invoice_number) || $invoice->fbr_status === InvoiceFbrStatus::Accepted || $invoice->status === InvoiceStatus::Issued) {
+                throw ValidationException::withMessages(['invoice' => 'An invoice submitted to or accepted by FBR cannot be deleted.']);
+            }
+            // Safely clean up validation logs before deleting to respect restrict foreign keys
+            foreach ($invoice->fbrSubmissions()->where('operation', 'validate')->get() as $validationSubmission) {
+                $validationSubmission->items()->delete();
+                $validationSubmission->delete();
             }
             $invoice->items()->delete();
             $invoice->delete();

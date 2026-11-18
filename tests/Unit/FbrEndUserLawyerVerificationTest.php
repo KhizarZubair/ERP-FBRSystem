@@ -224,6 +224,11 @@ class FbrEndUserLawyerVerificationTest extends TestCase
         $err0053 = $this->errors->entry('0053');
         $this->assertNotNull($err0053);
         $this->assertSame('BUYER', $err0053['category']);
+
+        // Supports sector and business activity as arrays
+        $sectorArrayEntry = $this->errors->entry('0102', ['Fast Moving Consumer Goods (FMCG)', 'Wholesale / Retails'], ['Manufacturer', 'Importer']);
+        $this->assertNotNull($sectorArrayEntry);
+        $this->assertStringContainsString('FMCG 3rd Schedule Goods', $sectorArrayEntry['guidance']);
     }
 
     /**

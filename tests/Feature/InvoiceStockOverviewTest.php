@@ -289,7 +289,7 @@ class InvoiceStockOverviewTest extends TestCase
         $this->postJson($url, ['version' => $created['version'], 'confirmed' => false])->assertUnprocessable();
         $approved = $this->postJson($url, ['version' => $created['version'], 'confirmed' => true])->assertOk()
             ->assertJsonPath('data.status', 'approved')->assertJsonPath('data.fbr_status', 'not_submitted')
-            ->assertJsonPath('data.editable', false)->json('data');
+            ->assertJsonPath('data.editable', true)->json('data');
         $invoice = Invoice::findOrFail($created['id']);
         $this->assertSame($this->owner->id, $invoice->approved_by);
         $this->assertNotNull($invoice->approved_at);
@@ -299,8 +299,16 @@ class InvoiceStockOverviewTest extends TestCase
         $this->assertSame(0, $invoice->fbrSubmissions()->count());
         $this->postJson($url, ['version' => $created['version'], 'confirmed' => true])->assertConflict();
         $this->postJson($url, ['version' => $approved['version'], 'confirmed' => true])->assertUnprocessable();
-        $this->putJson($this->base('invoices/'.$created['id']), [...$this->invoicePayload(), 'version' => $approved['version']])->assertUnprocessable();
-        $this->deleteJson($this->base('invoices/'.$created['id']), ['version' => $approved['version']])->assertUnprocessable();
+        
+        // Before submission to FBR, editing an approved invoice resets its status to draft for review
+        $edited = $this->putJson($this->base('invoices/'.$created['id']), [...$this->invoicePayload(), 'version' => $approved['version'], 'notes' => 'Edited after approval'])
+            ->assertOk()->assertJsonPath('data.status', 'draft')->assertJsonPath('data.notes', 'Edited after approval')->json('data');
+        $this->assertNull($invoice->fresh()->approved_at);
+
+        // Can re-approve and delete unsubmitted invoice
+        $reApproved = $this->postJson($url, ['version' => $edited['version'], 'confirmed' => true])->assertOk()->json('data');
+        $this->deleteJson($this->base('invoices/'.$created['id']), ['version' => $reApproved['version']])->assertOk();
+        $this->assertNull(Invoice::find($created['id']));
         Http::assertNothingSent();
     }
 
@@ -336,5 +344,51 @@ class InvoiceStockOverviewTest extends TestCase
         auth()->forgetGuards();
         $this->postJson($this->base('invoices/preview'), $this->invoicePayload())->assertUnauthorized();
         $this->postJson($this->base('invoices/'.$created['id'].'/approve'), ['version' => $created['version'], 'confirmed' => true])->assertUnauthorized();
+    }
+
+    public function test_unsubmitted_invoice_with_validation_history_can_be_deleted_and_submitted_invoice_is_locked(): void
+    {
+        $created = $this->postJson($this->base('invoices'), $this->invoicePayload())->assertCreated()->json('data');
+        $invoice = Invoice::findOrFail($created['id']);
+        
+        // Add a validation submission record
+        $submission = $invoice->fbrSubmissions()->make([
+            'attempt_number' => 1,
+            'idempotency_key' => (string) \Illuminate\Support\Str::uuid(),
+            'environment' => 'sandbox',
+            'operation' => 'validate',
+            'status' => 'rejected',
+        ]);
+        $submission->forceFill(['company_id' => $this->workspace->id])->save();
+        $item = $submission->items()->make([
+            'invoice_id' => $invoice->id,
+            'line_number' => 1,
+            'status' => 'Invalid',
+        ]);
+        $item->forceFill(['company_id' => $this->workspace->id])->save();
+
+        // Unsubmitted invoice with validation history can still be deleted
+        $this->deleteJson($this->base('invoices/'.$created['id']), ['version' => $created['version']])->assertOk();
+        $this->assertNull(Invoice::find($created['id']));
+        $this->assertDatabaseMissing('fbr_submissions', ['id' => $submission->id]);
+
+        // Now test that submitted invoices cannot be deleted or edited
+        $submittedInvoiceData = $this->postJson($this->base('invoices'), $this->invoicePayload())->assertCreated()->json('data');
+        $submittedInvoice = Invoice::findOrFail($submittedInvoiceData['id']);
+        $submittedRecord = $submittedInvoice->fbrSubmissions()->make([
+            'attempt_number' => 1,
+            'idempotency_key' => (string) \Illuminate\Support\Str::uuid(),
+            'environment' => 'sandbox',
+            'operation' => 'submit',
+            'status' => 'accepted',
+            'fbr_invoice_number' => 'PRAL-LIVE-12345',
+        ]);
+        $submittedRecord->forceFill(['company_id' => $this->workspace->id])->save();
+        $submittedInvoice->forceFill(['fbr_status' => 'accepted', 'fbr_invoice_number' => 'PRAL-LIVE-12345'])->save();
+
+        // Must be blocked from editing and deleting
+        $record = $this->getJson($this->base('invoices/'.$submittedInvoice->id))->assertOk()->assertJsonPath('data.editable', false)->json('data');
+        $this->putJson($this->base('invoices/'.$submittedInvoice->id), [...$this->invoicePayload(), 'version' => $record['version']])->assertUnprocessable();
+        $this->deleteJson($this->base('invoices/'.$submittedInvoice->id), ['version' => $record['version']])->assertUnprocessable();
     }
 }

@@ -1,10 +1,14 @@
 import { api } from "../../lib/api";
 export type CustomerRecord = {
     id: number; code: string; name: string; registration_type: "Registered" | "Unregistered";
+    ntn?: string | null; cnic?: string | null;
     ntn_cnic: string | null; province: string; city: string | null; address: string;
     email: string | null; phone: string | null; is_active: boolean;
 };
-export type CustomerDraft = Omit<CustomerRecord, "id">;
+export type CustomerDraft = Omit<CustomerRecord, "id"> & {
+    ntn?: string | null;
+    cnic?: string | null;
+};
 export type CustomerFilters = { search: string; registration_type: string; page: number; sort: string; direction: string };
 export type CustomerPage = { data: CustomerRecord[]; meta: { current_page: number; last_page: number; total: number; per_page: number } };
 const base = (company: number) => `/api/v1/companies/${company}/customers`;
@@ -27,8 +31,17 @@ export const customerApi = {
     },
 };
 export function customerDraft(customer?: CustomerRecord): CustomerDraft {
-    return customer ? { code: customer.code, name: customer.name, registration_type: customer.registration_type,
-        ntn_cnic: customer.ntn_cnic || "", province: customer.province, city: customer.city || "",
-        address: customer.address, email: customer.email || "", phone: customer.phone || "", is_active: customer.is_active }
-        : { code: "", name: "", registration_type: "Registered", ntn_cnic: "", province: "", city: "", address: "", email: "", phone: "", is_active: true };
+    const isUnreg = customer?.registration_type === "Unregistered";
+    const raw = customer?.ntn_cnic || "";
+    const ntnVal = customer?.ntn || (!isUnreg && raw.length <= 8 ? raw : "");
+    const cnicVal = customer?.cnic || (isUnreg || raw.length === 13 ? raw : "");
+
+    return customer ? {
+        code: customer.code, name: customer.name, registration_type: customer.registration_type || "Registered",
+        ntn: ntnVal, cnic: cnicVal, ntn_cnic: customer.ntn_cnic || "", province: customer.province, city: customer.city || "",
+        address: customer.address, email: customer.email || "", phone: customer.phone || "", is_active: customer.is_active,
+    } : {
+        code: "", name: "", registration_type: "Registered", ntn: "", cnic: "", ntn_cnic: "",
+        province: "", city: "", address: "", email: "", phone: "", is_active: true,
+    };
 }

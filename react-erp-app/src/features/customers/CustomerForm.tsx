@@ -19,58 +19,94 @@ export function CustomerForm({ companyId, customer }: { companyId: number; custo
     const [verifiedNumber, setVerifiedNumber] = useState("");
     const [verification, setVerification] = useState<BuyerVerification["data"]>();
     const lock = useRef(false);
+
     function change(key: keyof CustomerDraft, value: string | boolean) {
         setDraft(current => ({ ...current, [key]: value }));
         setErrors(current => ({ ...current, [key]: [] }));
-        if (key === "ntn_cnic" && value !== verifiedNumber) {
+        if (key === "ntn" && value !== verifiedNumber) {
             setVerifiedNumber("");
             setVerification(undefined);
             setMessage("");
         }
     }
+
     const field = (key: Exclude<keyof CustomerDraft, "is_active">) => ({
         name: key, value: draft[key] || "", error: errors[key]?.[0],
         onChange: (event: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => change(key, event.target.value),
     });
-    const registrationNumber = String(draft.ntn_cnic || "").trim();
-    const validRegistrationNumber = /^(?:[0-9]{7,8}|[0-9]{13})$/.test(registrationNumber);
+
+    const isRegistered = draft.registration_type === "Registered";
+    const ntnValue = String(draft.ntn || "").trim();
+    const cnicValue = String(draft.cnic || "").trim();
+    const validNtn = /^[0-9]{7,8}$/.test(ntnValue);
+
     const isVerified = Boolean(
-        (registrationNumber && verifiedNumber === registrationNumber && verification?.active) ||
-        (customer && draft.ntn_cnic === customer.ntn_cnic && customer.ntn_cnic && customer.registration_type === "Registered")
+        (ntnValue && verifiedNumber === ntnValue && verification?.active) ||
+        (customer && customer.registration_type === "Registered" && (customer.ntn === ntnValue || customer.ntn_cnic === ntnValue))
     );
+
     const canSave = !busy;
+
     async function verifyBuyer() {
-        if (!validRegistrationNumber || verifying) return;
+        if (!validNtn || verifying) return;
         setVerifying(true); setMessage(""); setVerification(undefined);
         try {
-            const response = await api<BuyerVerification>(`/api/v1/companies/${companyId}/fbr/buyer-verification?registration_number=${encodeURIComponent(registrationNumber)}&date=${new Date().toISOString().slice(0, 10)}`);
+            const response = await api<BuyerVerification>(
+                `/api/v1/companies/${companyId}/fbr/buyer-verification?registration_number=${encodeURIComponent(ntnValue)}&date=${new Date().toISOString().slice(0, 10)}`
+            );
             const result = response.data;
             setVerification(result);
-            setVerifiedNumber(registrationNumber);
+            setVerifiedNumber(ntnValue);
             if (result.is_offline) {
-                change("registration_type", "Unregistered");
-                setMessage("FBR verification gateway is currently slow or unreachable. You can save this customer locally now as unverified and re-verify before invoice generation.");
+                setMessage("FBR verification gateway is currently slow or unreachable. You can save this customer locally now.");
             } else if (result.active && result.registration_type?.toLowerCase() === "registered") {
-                change("registration_type", "Registered");
+                setMessage("FBR Taxpayer Verified: Active Registered Taxpayer.");
             } else {
-                change("registration_type", "Unregistered");
-                setMessage("FBR did not confirm an active taxpayer. Customer will be marked Unregistered.");
+                setMessage("FBR did not confirm this NTN as an active registered taxpayer.");
             }
         } catch (error) {
             setVerifiedNumber("");
             setVerification(undefined);
-            change("registration_type", "Unregistered");
-            setMessage("FBR verification gateway is currently unreachable. Customer can be saved locally as unverified and re-verified later.");
+            setMessage("FBR verification gateway is currently unreachable. Customer can be saved locally.");
         } finally { setVerifying(false); }
     }
+
     return <Card title={customer ? "Edit Customer" : "Create Customer"}><form onSubmit={async event => {
         event.preventDefault();
         if (lock.current || !canSave) return;
+
+        // Custom validation check
+        const newErrors: FieldErrors = {};
+        if (isRegistered) {
+            if (!ntnValue) {
+                newErrors.ntn = ["Buyer NTN is required for registered customers."];
+            } else if (!/^[0-9]{7,8}$/.test(ntnValue)) {
+                newErrors.ntn = ["Buyer NTN must be 7 or 8 digits."];
+            }
+            if (cnicValue && !/^[0-9]{13}$/.test(cnicValue)) {
+                newErrors.cnic = ["CNIC must be 13 digits without dashes."];
+            }
+        } else {
+            if (!cnicValue) {
+                newErrors.cnic = ["Buyer CNIC is required for unregistered customers."];
+            } else if (!/^[0-9]{13}$/.test(cnicValue)) {
+                newErrors.cnic = ["Buyer CNIC must be exactly 13 digits without dashes."];
+            }
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            return;
+        }
+
         lock.current = true; setBusy(true); setMessage(""); setErrors({});
         try {
             const payload: CustomerDraft = {
                 ...draft,
-                registration_type: draft.registration_type || (isVerified ? "Registered" : "Unregistered"),
+                registration_type: draft.registration_type,
+                ntn: isRegistered ? ntnValue : "",
+                cnic: cnicValue,
+                ntn_cnic: isRegistered ? ntnValue : cnicValue,
             };
             await customerApi.save(companyId, payload, customer?.id);
             navigate("/customers");
@@ -82,21 +118,101 @@ export function CustomerForm({ companyId, customer }: { companyId: number; custo
         {message && <Notice tone="warning">{message}</Notice>}
         <fieldset className="form-fields" disabled={busy}>
             <div className="form-grid">
+                {/* Registration Type Selection (Check / Toggle) */}
+                <div className="field" style={{ gridColumn: "1 / -1" }}>
+                    <label style={{ fontWeight: 600, marginBottom: "0.5rem", display: "block" }}>
+                        Registration Type (FBR Tax Status) *
+                    </label>
+                    <div style={{ display: "flex", gap: "2rem", alignItems: "center", padding: "0.5rem 0" }}>
+                        <label style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontWeight: 500 }}>
+                            <input
+                                type="radio"
+                                name="registration_type"
+                                value="Registered"
+                                checked={isRegistered}
+                                onChange={() => {
+                                    change("registration_type", "Registered");
+                                    setVerification(undefined);
+                                    setVerifiedNumber("");
+                                }}
+                            />
+                            <span>Registered Buyer (Active Sales Taxpayer)</span>
+                        </label>
+                        <label style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontWeight: 500 }}>
+                            <input
+                                type="radio"
+                                name="registration_type"
+                                value="Unregistered"
+                                checked={!isRegistered}
+                                onChange={() => {
+                                    change("registration_type", "Unregistered");
+                                    setVerification(undefined);
+                                    setVerifiedNumber("");
+                                }}
+                            />
+                            <span>Unregistered Buyer (Consumer / Walk-in)</span>
+                        </label>
+                    </div>
+                    <small className="field-hint">
+                        {isRegistered
+                            ? "Registered buyers require a valid 7 or 8-digit NTN (Used for Scenario SN001)."
+                            : "Unregistered buyers require a 13-digit CNIC (Used for Scenario SN002). NTN is not required."}
+                    </small>
+                </div>
+
                 <Input label="Business / customer name" required maxLength={255} {...field("name")} />
                 <Input label="Customer code" required={!!customer} maxLength={50} pattern={"[A-Za-z0-9_\\-]+"} placeholder="Generated automatically if left blank" {...field("code")} />
+
+                {/* If Registered: Show NTN (Required) */}
+                {isRegistered && (
+                    <div className="field">
+                        <label htmlFor="customer-ntn">Buyer NTN *</label>
+                        <input
+                            id="customer-ntn"
+                            name="ntn"
+                            value={draft.ntn || ""}
+                            inputMode="numeric"
+                            pattern="[0-9]{7,8}"
+                            maxLength={8}
+                            required
+                            placeholder="7 or 8-digit NTN (e.g. 0711153)"
+                            aria-invalid={!!errors.ntn || !!errors.ntn_cnic}
+                            onChange={event => change("ntn", event.target.value)}
+                        />
+                        <small className={errors.ntn || errors.ntn_cnic ? "field-error" : "field-hint"}>
+                            {errors.ntn?.[0] || errors.ntn_cnic?.[0] || "7 or 8 digits without dashes. Required for FBR Registered Buyer invoices."}
+                        </small>
+                        {verification && verifiedNumber === ntnValue && (
+                            <div className="customer-verification-status">
+                                <Badge tone={verification.active ? "success" : "warning"}>
+                                    {verification.is_offline ? "FBR Offline (Unverified)" : verification.active ? "Taxpayer Verified: Active" : "Unregistered Buyer"}
+                                </Badge>
+                                <span>{verification.is_offline ? "Gateway offline" : verification.active ? verification.registration_type : "Registration not active"} · FBR Check</span>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* CNIC Field: If Registered, optional. If Unregistered, required and NTN is hidden! */}
                 <div className="field">
-                    <label htmlFor="customer-ntn-cnic">NTN / CNIC</label>
-                    <input id="customer-ntn-cnic" name="ntn_cnic" value={draft.ntn_cnic || ""} inputMode="numeric" pattern="([0-9]{7,8}|[0-9]{13})" maxLength={13}
-                        placeholder="7 or 8-digit NTN or 13-digit CNIC (optional)" aria-invalid={!!errors.ntn_cnic}
-                        onChange={event => change("ntn_cnic", event.target.value)} />
-                    <small className={errors.ntn_cnic ? "field-error" : "field-hint"}>{errors.ntn_cnic?.[0] || "Digits only without dashes. Optional for unregistered walk-in customers."}</small>
-                    {verification && verifiedNumber === registrationNumber && <div className="customer-verification-status">
-                        <Badge tone={verification.active ? "success" : "warning"}>
-                            {verification.is_offline ? "FBR Offline (Unverified)" : verification.active ? "Taxpayer Verified: Active" : "Unregistered Buyer"}
-                        </Badge>
-                        <span>{verification.is_offline ? "Gateway offline" : verification.active ? verification.registration_type : "Registration not active"} · FBR Check</span>
-                    </div>}
+                    <label htmlFor="customer-cnic">Buyer CNIC {isRegistered ? "(Optional)" : "*"}</label>
+                    <input
+                        id="customer-cnic"
+                        name="cnic"
+                        value={draft.cnic || ""}
+                        inputMode="numeric"
+                        pattern="[0-9]{13}"
+                        maxLength={13}
+                        required={!isRegistered}
+                        placeholder="13-digit CNIC without dashes (e.g. 4210112345671)"
+                        aria-invalid={!!errors.cnic}
+                        onChange={event => change("cnic", event.target.value)}
+                    />
+                    <small className={errors.cnic ? "field-error" : "field-hint"}>
+                        {errors.cnic?.[0] || (isRegistered ? "Optional 13-digit CNIC without dashes." : "13-digit CNIC without dashes. Required for FBR Unregistered Buyer invoices.")}
+                    </small>
                 </div>
+
                 <Select label="Province" required options={[{ value: "", label: "Select province" }, ...provinces]} {...field("province")} />
                 <Select label="Status" options={["Active", "Inactive"]} value={draft.is_active ? "Active" : "Inactive"} onChange={event => change("is_active", event.target.value === "Active")} error={errors.is_active?.[0]} />
                 <Input label="City (optional)" maxLength={100} {...field("city")} />
@@ -106,9 +222,11 @@ export function CustomerForm({ companyId, customer }: { companyId: number; custo
             </div>
             <FormActions>
                 <Button variant="secondary" onClick={() => navigate("/customers")}>Cancel</Button>
-                <Button type="button" variant="secondary" disabled={!validRegistrationNumber || verifying || busy || isVerified} onClick={verifyBuyer}>
-                    {verifying ? "Checking FBR…" : isVerified ? "Verified with FBR ✓" : "Verify with FBR"}
-                </Button>
+                {isRegistered && (
+                    <Button type="button" variant="secondary" disabled={!validNtn || verifying || busy || isVerified} onClick={verifyBuyer}>
+                        {verifying ? "Checking FBR…" : isVerified ? "Verified with FBR ✓" : "Verify NTN with FBR"}
+                    </Button>
+                )}
                 <Button type="submit" disabled={!canSave}>{busy ? "Saving…" : customer ? "Update Customer" : "Save Customer"}</Button>
             </FormActions>
         </fieldset>

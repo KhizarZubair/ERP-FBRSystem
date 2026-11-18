@@ -183,4 +183,43 @@ class CustomerEndpointsTest extends TestCase
         $this->assertNotNull($customer->fresh());
         $this->patchJson($this->url($company, $customer->id).'/status', ['is_active' => false])->assertOk()->assertJsonPath('data.is_active', false);
     }
+
+    public function test_customer_ntn_and_cnic_separate_fields_and_conditional_validation(): void
+    {
+        $user = User::factory()->create()->fresh();
+        $company = $this->company($user);
+        $this->actingAs($user);
+
+        // 1. Registered buyer requires valid NTN (7 or 8 digits), CNIC optional (13 digits)
+        $regData = [
+            'code' => 'REG-001',
+            'name' => 'Registered Corporation',
+            'registration_type' => 'Registered',
+            'ntn' => '0711153',
+            'cnic' => '4210112345671',
+            'province' => 'Sindh',
+            'address' => 'Karachi',
+            'is_active' => true,
+        ];
+        $res = $this->postJson($this->url($company), $regData)->assertCreated();
+        $res->assertJsonPath('data.registration_type', 'Registered')
+            ->assertJsonPath('data.ntn_cnic', '0711153')
+            ->assertJsonPath('data.ntn', '0711153')
+            ->assertJsonPath('data.cnic', '4210112345671');
+
+        // 2. Unregistered buyer uses CNIC (13 digits), NTN omitted
+        $unregData = [
+            'code' => 'UNREG-001',
+            'name' => 'Walk In Consumer',
+            'registration_type' => 'Unregistered',
+            'cnic' => '4210199999991',
+            'province' => 'Sindh',
+            'address' => 'Karachi',
+            'is_active' => true,
+        ];
+        $res2 = $this->postJson($this->url($company), $unregData)->assertCreated();
+        $res2->assertJsonPath('data.registration_type', 'Unregistered')
+            ->assertJsonPath('data.ntn_cnic', '4210199999991')
+            ->assertJsonPath('data.cnic', '4210199999991');
+    }
 }

@@ -786,7 +786,7 @@ class FbrErrorCatalog
     /**
      * Returns actionable guidance for an FBR error code with optional sector context.
      */
-    public function guidance(?string $code, ?string $sector = null, ?string $businessActivity = null): ?string
+    public function guidance(?string $code, string|array|null $sector = null, string|array|null $businessActivity = null): ?string
     {
         if ($code === null) {
             return null;
@@ -794,7 +794,9 @@ class FbrErrorCatalog
 
         // Sector-specific contextual enhancements
         if ($sector !== null) {
-            $normalizedSector = strtolower(trim($sector));
+            $normalizedSector = is_array($sector)
+                ? strtolower(implode(' ', array_filter($sector, 'is_string')))
+                : strtolower(trim((string) $sector));
             if ($code === '0102' && str_contains($normalizedSector, 'fmcg')) {
                 return 'FMCG 3rd Schedule Goods: Sales tax must be calculated on printed Retail Price multiplied by quantity, not on discounted net sale value.';
             }
@@ -818,7 +820,7 @@ class FbrErrorCatalog
      *
      * @return array{code: string, category: string, official: string, brief: string, guidance: string, solution: string}|null
      */
-    public function entry(?string $code, ?string $sector = null, ?string $businessActivity = null): ?array
+    public function entry(?string $code, string|array|null $sector = null, string|array|null $businessActivity = null): ?array
     {
         if ($code === null || ! isset(self::CATALOG[$code])) {
             return null;

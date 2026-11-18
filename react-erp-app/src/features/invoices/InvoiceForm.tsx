@@ -68,6 +68,7 @@ export function InvoiceForm({ id }: { id?: string }) {
             actions={<Button variant="secondary" onClick={() => navigate("/invoices")}>Back to invoices</Button>} />
         
         {error && <Notice tone="warning">{error}</Notice>}
+        {original?.status === "approved" && <Notice tone="info">Note: This invoice was previously approved. Saving changes will update the invoice and reset its status to draft so you can review and approve it again before FBR submission.</Notice>}
         {savedInvoice && <Modal title="Invoice Saved Successfully" onClose={() => { setSavedInvoice(undefined); navigate(`/invoices/${savedInvoice.id}/review`); }}
             footer={<div className="actions"><Button variant="secondary" onClick={() => { setSavedInvoice(undefined); navigate("/invoices"); }}>Back to Invoices</Button>
                 <Button onClick={() => { const savedId = savedInvoice.id; setSavedInvoice(undefined); navigate(`/invoices/${savedId}/review`); }}>Review Saved Invoice</Button></div>}>

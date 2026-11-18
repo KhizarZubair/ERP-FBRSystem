@@ -279,10 +279,16 @@ class FbrInvoiceService
             }
         }
         if (filled($invoice->buyer_ntn_cnic)) {
-            $buyer = $this->references->buyerVerification($company, $invoice->buyer_ntn_cnic, $invoice->invoice_date->toDateString());
-            $expected = $invoice->buyer_registration_type->value;
-            if (strcasecmp($buyer['registration_type'], $expected) !== 0 || ($expected === 'Registered' && ! $buyer['active'])) {
-                throw ValidationException::withMessages(['buyer_ntn_cnic' => 'Buyer registration type or active status does not match the current FBR record.']);
+            try {
+                $buyer = $this->references->buyerVerification($company, $invoice->buyer_ntn_cnic, $invoice->invoice_date->toDateString());
+                $expected = $invoice->buyer_registration_type->value;
+                if (strcasecmp($buyer['registration_type'], $expected) !== 0 || ($expected === 'Registered' && ! $buyer['active'])) {
+                    throw ValidationException::withMessages(['buyer_ntn_cnic' => 'Buyer registration type or active status does not match the current FBR record.']);
+                }
+            } catch (ValidationException $e) {
+                throw $e;
+            } catch (\Throwable $e) {
+                // If FBR's auxiliary buyer lookup endpoint is down or timing out, let FBR's authoritative validateinvoicedata endpoint handle validation
             }
         }
     }
@@ -339,8 +345,8 @@ class FbrInvoiceService
     public function summary(FbrSubmission $record): array
     {
         $company = $record->company;
-        $sector = $company?->sector;
-        $activity = $company?->business_activity;
+        $sector = is_array($company?->sector) ? implode(', ', $company->sector) : $company?->sector;
+        $activity = is_array($company?->business_activity) ? implode(', ', $company->business_activity) : $company?->business_activity;
         $headerEntry = $this->errors->entry($record->business_error_code, $sector, $activity);
 
         return [

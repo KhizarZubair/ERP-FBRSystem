@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['code', 'name', 'registration_type', 'ntn_cnic', 'province', 'city', 'address', 'email', 'phone', 'is_active'])]
+#[Fillable(['code', 'name', 'registration_type', 'ntn_cnic', 'cnic', 'province', 'city', 'address', 'email', 'phone', 'is_active'])]
 class Customer extends Model
 {
     use BelongsToCompany, SoftDeletes;

@@ -81,9 +81,9 @@ class InvoiceController extends Controller
     public function destroy(Request $request, int $company, int $invoice): JsonResponse
     {
         $workspace = $this->access->company($request->user(), $company, true);
-        $data = $request->validate(['version' => ['required', 'string', 'size:64']]);
-        $this->invoices->delete($workspace, $invoice, $data['version']);
+        $data = $request->validate(['version' => ['nullable', 'string', 'size:64']]);
+        $this->invoices->delete($workspace, $invoice, $data['version'] ?? null);
 
-        return response()->json(['message' => 'Draft invoice deleted.']);
+        return response()->json(['message' => 'Invoice deleted successfully.']);
     }
 }

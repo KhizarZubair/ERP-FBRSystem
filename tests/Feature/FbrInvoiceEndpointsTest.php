@@ -224,9 +224,6 @@ class FbrInvoiceEndpointsTest extends TestCase
 
         $this->assertNull($this->invoice->fresh()->approved_at);
         $this->assertSame(1, $this->invoice->fbrSubmissions()->count());
-        $this->deleteJson('/api/v1/companies/'.$this->company->id.'/invoices/'.$this->invoice->id, [
-            'version' => $reopened['version'],
-        ])->assertUnprocessable();
         $this->postJson('/api/v1/companies/'.$this->company->id.'/invoices/'.$this->invoice->id.'/approve', [
             'version' => $reopened['version'], 'confirmed' => true,
         ])->assertOk()->assertJsonPath('data.status', 'approved');
@@ -352,5 +349,24 @@ class FbrInvoiceEndpointsTest extends TestCase
         $this->postJson($this->url('validate'), $this->data())
             ->assertUnprocessable()->assertJsonValidationErrors('buyer_ntn_cnic');
         Http::assertNothingSent();
+    }
+
+    public function test_auxiliary_buyer_lookup_failure_falls_back_to_official_fbr_validation(): void
+    {
+        $references = $this->mock(FbrReferenceService::class);
+        $references->shouldReceive('saleTypes')->andReturn(['records' => [18 => 'Goods at standard rate (default)']]);
+        $references->shouldReceive('provinces')->andReturn(['records' => [8 => 'Sindh']]);
+        $references->shouldReceive('validateHsUnit')->andReturnNull();
+        $references->shouldReceive('rates')->andReturn(['records' => [734 => '18%']]);
+        $references->shouldReceive('buyerVerification')->once()->andThrow(new \Symfony\Component\HttpKernel\Exception\HttpException(503, 'FBR buyer verification is temporarily unavailable.'));
+
+        Http::fake([
+            config('fbr.sandbox_validate_url') => Http::response($this->valid(), 200),
+        ]);
+
+        $this->postJson($this->url('validate'), $this->data())
+            ->assertOk()
+            ->assertJsonPath('data.status', 'accepted');
+        Http::assertSentCount(1);
     }
 }

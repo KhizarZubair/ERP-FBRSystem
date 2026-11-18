@@ -21,6 +21,26 @@ class SaveCustomerRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $regType = $this->input('registration_type');
+        $ntn = trim((string) $this->input('ntn'));
+        $cnic = trim((string) $this->input('cnic'));
+        $ntnCnic = trim((string) $this->input('ntn_cnic'));
+
+        if ($regType === RegistrationType::Registered->value) {
+            $effectiveNtnCnic = $ntn !== '' ? $ntn : $ntnCnic;
+        } else {
+            $effectiveNtnCnic = $cnic !== '' ? $cnic : $ntnCnic;
+        }
+
+        $this->merge([
+            'ntn' => $ntn !== '' ? $ntn : null,
+            'cnic' => $cnic !== '' ? $cnic : null,
+            'ntn_cnic' => $effectiveNtnCnic !== '' ? $effectiveNtnCnic : null,
+        ]);
+    }
+
     public function rules(): array
     {
         $unique = Rule::unique(Customer::class, 'code')->where('company_id', (int) $this->route('company'));
@@ -32,7 +52,14 @@ class SaveCustomerRequest extends FormRequest
             'code' => [$this->isMethod('POST') ? 'nullable' : 'required', 'string', 'max:50', 'regex:/^[A-Za-z0-9_-]+$/', $unique],
             'name' => ['required', 'string', 'max:255'],
             'registration_type' => ['required', Rule::enum(RegistrationType::class)],
-            'ntn_cnic' => [Rule::requiredIf($this->input('registration_type') === RegistrationType::Registered->value), 'nullable', 'string', 'regex:/^(?:[0-9]{7,8}|[0-9]{13})$/'],
+            'ntn' => ['nullable', 'string', 'regex:/^[0-9]{7,8}$/'],
+            'cnic' => ['nullable', 'string', 'regex:/^[0-9]{13}$/'],
+            'ntn_cnic' => [
+                Rule::requiredIf($this->input('registration_type') === RegistrationType::Registered->value),
+                'nullable',
+                'string',
+                'regex:/^(?:[0-9]{7,8}|[0-9]{13})$/'
+            ],
             'province' => ['required', Rule::in(config('erp.provinces'))],
             'city' => ['nullable', 'string', 'max:100'],
             'address' => ['required', 'string', 'max:2000'],
