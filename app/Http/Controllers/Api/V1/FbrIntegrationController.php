@@ -361,7 +361,12 @@ class FbrIntegrationController extends Controller
                 $response = Http::withToken($token)->acceptJson()->asJson()->connectTimeout(5)->timeout(25)
                     ->withOptions(['allow_redirects' => false])
                     ->post(config('fbr.sandbox_submit_url'), $payload);
-                $body = json_decode(str_replace($token, '[redacted]', $response->body()), true);
+                $rawText = str_replace($token, '[redacted]', $response->body());
+                $body = json_decode($rawText, true);
+                if (! is_array($body)) {
+                    // PRAL occasionally returns trailing commas in JSON error payloads (e.g. SN012).
+                    $body = json_decode((string) preg_replace('/,\s*([}\]])/', '$1', $rawText), true);
+                }
                 $validation = is_array($body) ? ($body['validationResponse'] ?? []) : [];
                 $lineResults = is_array($validation) ? ($validation['invoiceStatuses'] ?? []) : [];
                 $passed = $response->successful()
@@ -376,7 +381,7 @@ class FbrIntegrationController extends Controller
                 }
                 $sector = is_array($company->sector) ? ($company->sector[0] ?? null) : $company->sector;
                 $activity = is_array($company->business_activity) ? ($company->business_activity[0] ?? null) : $company->business_activity;
-                $errCode = $passed ? null : ($validation['errorCode'] ?? ($lineResults[0]['errorCode'] ?? null));
+                $errCode = $passed ? null : ((($validation['errorCode'] ?? null) ?: null) ?? (($lineResults[0]['errorCode'] ?? null) ?: null));
                 $errEntry = $errCode !== null ? $this->errors->entry((string) $errCode, $sector, $activity) : null;
                 $resultsById[$scenarioId] = [
                     'scenario_id' => $scenarioId,
@@ -384,7 +389,7 @@ class FbrIntegrationController extends Controller
                     'passed' => $passed,
                     'fbr_invoice_no' => $body['invoiceNumber'] ?? null,
                     'error_code' => $errCode,
-                    'error' => $passed ? null : ($validation['error'] ?? ($lineResults[0]['error'] ?? ('FBR sandbox rejected the scenario (HTTP '.$response->status().').'))),
+                    'error' => $passed ? null : ((($validation['error'] ?? null) ?: null) ?? (($lineResults[0]['error'] ?? null) ?: null) ?? ('FBR sandbox rejected the scenario (HTTP '.$response->status().').')),
                     'category' => $errEntry['category'] ?? null,
                     'guidance' => $errEntry['guidance'] ?? null,
                     'solution' => $errEntry['solution'] ?? null,

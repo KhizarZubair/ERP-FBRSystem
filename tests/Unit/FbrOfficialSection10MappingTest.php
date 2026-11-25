@@ -15,7 +15,7 @@ class FbrOfficialSection10MappingTest extends TestCase
         foreach ($registry->definitions() as $id => $definition) {
             $this->assertSame(config('fbr.supported_scenarios.'.$id.'.sale_type'), $definition['sale_type'], $id.' sale type must match FBR Section 9.');
         }
-        $base = ['SN001', 'SN002', 'SN005', 'SN006', 'SN007', 'SN015', 'SN016', 'SN017', 'SN021', 'SN022', 'SN024'];
+        $base = ['SN001', 'SN002', 'SN005', 'SN006', 'SN007', 'SN016', 'SN017', 'SN024'];
         $retail = ['SN026', 'SN027', 'SN028', 'SN008'];
         $sectors = [
             'Potassium Chlorate', 'Mobile', 'Pharmaceuticals', 'Automobile',
@@ -27,11 +27,12 @@ class FbrOfficialSection10MappingTest extends TestCase
 
         foreach ($activities as $activity) {
             foreach ($sectors as $sector) {
+                $isStandaloneSector = in_array($sector, ['Potassium Chlorate', 'Mobile', 'Cement or Concrete Blocks'], true);
                 $sectorOnly = match ($sector) {
-                    'Steel' => ['SN003', 'SN004', 'SN011'],
-                    'Potassium Chlorate' => ['SN022'],
-                    'Mobile' => ['SN015'],
-                    'Cement or Concrete Blocks' => ['SN021'],
+                    'Steel' => ['SN003', 'SN004'],
+                    'Potassium Chlorate' => ['SN001', 'SN002', 'SN022'],
+                    'Mobile' => ['SN001', 'SN002', 'SN015'],
+                    'Cement or Concrete Blocks' => ['SN001', 'SN002', 'SN021'],
                     'FMCG' => ['SN008'],
                     'Textile' => ['SN009'],
                     'Telecom' => ['SN010'],
@@ -48,8 +49,8 @@ class FbrOfficialSection10MappingTest extends TestCase
 
                 $expected = match ($activity) {
                     'Manufacturer' => match ($sector) {
-                        'Steel' => ['SN003', 'SN004', 'SN011'],
-                        'Potassium Chlorate', 'Mobile', 'Cement or Concrete Blocks' => $base,
+                        'Steel' => ['SN003', 'SN004'],
+                        'Potassium Chlorate', 'Mobile', 'Cement or Concrete Blocks' => $sectorOnly,
                         'FMCG' => [...$base, 'SN008'],
                         'Textile' => [...$base, 'SN009'],
                         'Telecom' => [...$base, 'SN010'],
@@ -63,28 +64,29 @@ class FbrOfficialSection10MappingTest extends TestCase
                         'Wholesale / Retails' => [...$base, ...$retail],
                         default => $base,
                     },
-                    'Importer' => array_values(array_unique([...$base, ...$sectorOnly])),
+                    'Importer' => $isStandaloneSector ? $sectorOnly : array_values(array_unique([...$base, ...$sectorOnly])),
                     'Distributor', 'Wholesaler' => match ($sector) {
-                        'Steel' => ['SN003', 'SN004', 'SN011', ...$retail],
+                        'Steel' => ['SN003', 'SN004', ...$retail],
                         'All Other Sectors' => [...$base, ...$retail],
                         'Wholesale / Retails' => ['SN001', 'SN002', ...$retail],
                         default => array_values(array_unique([...$sectorOnly, ...$retail])),
                     },
-                    'Exporter' => $sector === 'Steel' ? [...$base, 'SN003', 'SN004', 'SN011']
-                        : ($sector === 'All Other Sectors' ? $base : array_values(array_unique([...$base, ...$sectorOnly]))),
+                    'Exporter' => $isStandaloneSector ? $sectorOnly : ($sector === 'Steel' ? [...$base, 'SN003', 'SN004']
+                        : ($sector === 'All Other Sectors' ? $base : array_values(array_unique([...$base, ...$sectorOnly])))),
                     'Retailer' => match ($sector) {
-                        'Steel' => ['SN003', 'SN004', 'SN011'],
+                        'Steel' => ['SN003', 'SN004'],
                         'All Other Sectors' => [...$base, ...$retail],
                         'Pharmaceuticals' => ['SN025', ...$retail],
                         default => array_values(array_unique([...$sectorOnly, ...$retail])),
                     },
                     'Service Provider' => match ($sector) {
+                        'Potassium Chlorate', 'Mobile', 'Cement or Concrete Blocks' => $sectorOnly,
                         'All Other Sectors' => [...$base, 'SN018', 'SN019'],
                         'Wholesale / Retails' => [...$retail, 'SN018', 'SN019'],
                         default => array_values(array_unique([...$sectorOnly, 'SN018', 'SN019'])),
                     },
-                    'Other' => $sector === 'Steel' ? [...$base, 'SN003', 'SN004', 'SN011']
-                        : ($sector === 'All Other Sectors' ? $base : array_values(array_unique([...$base, ...$sectorOnly]))),
+                    'Other' => $isStandaloneSector ? $sectorOnly : ($sector === 'Steel' ? [...$base, 'SN003', 'SN004']
+                        : ($sector === 'All Other Sectors' ? $base : array_values(array_unique([...$base, ...$sectorOnly])))),
                 };
 
                 $actual = $registry->scenariosForSectorAndActivity($activity, $sector);
@@ -106,7 +108,6 @@ class FbrOfficialSection10MappingTest extends TestCase
 
         $this->assertContains('SN003', $actual);
         $this->assertContains('SN004', $actual);
-        $this->assertContains('SN011', $actual);
         $this->assertContains('SN009', $actual);
         $this->assertContains('SN026', $actual);
         $this->assertSame(count($actual), count(array_unique($actual)));
@@ -161,6 +162,6 @@ class FbrOfficialSection10MappingTest extends TestCase
             'allowed_sandbox_scenarios' => ['SN001', 'SN099'],
         ]);
 
-        $this->assertSame(['SN003', 'SN004', 'SN011'], (new FbrScenarioRegistry())->allowedCodesForCompany($company));
+        $this->assertSame(['SN003', 'SN004'], (new FbrScenarioRegistry())->allowedCodesForCompany($company));
     }
 }

@@ -34,7 +34,7 @@ class FbrScenarioRunnerTest extends TestCase
         $scenarios = $this->registry->scenariosForSectorAndActivity('Manufacturer', 'FMCG');
 
         $this->assertEqualsCanonicalizing(
-            ['SN001', 'SN002', 'SN005', 'SN006', 'SN007', 'SN008', 'SN015', 'SN016', 'SN017', 'SN021', 'SN022', 'SN024'],
+            ['SN001', 'SN002', 'SN005', 'SN006', 'SN007', 'SN008', 'SN016', 'SN017', 'SN024'],
             $scenarios
         );
         $this->assertContains('SN008', $scenarios, 'FMCG must include SN008 (Third Schedule)');
@@ -45,12 +45,11 @@ class FbrScenarioRunnerTest extends TestCase
         $scenarios = $this->registry->scenariosForSectorAndActivity('Manufacturer', 'Steel');
 
         $this->assertEqualsCanonicalizing(
-            ['SN003', 'SN004', 'SN011'],
+            ['SN003', 'SN004'],
             $scenarios
         );
         $this->assertContains('SN003', $scenarios, 'Steel must include Melted Steel SN003');
         $this->assertContains('SN004', $scenarios, 'Steel must include Ship Breakers SN004');
-        $this->assertContains('SN011', $scenarios, 'Steel must include Toll Manufacturing SN011');
     }
 
     public function test_auto_mapping_for_textile_sector(): void
@@ -58,7 +57,7 @@ class FbrScenarioRunnerTest extends TestCase
         $scenarios = $this->registry->scenariosForSectorAndActivity('Manufacturer', 'Textile');
 
         $this->assertEqualsCanonicalizing(
-            ['SN001', 'SN002', 'SN005', 'SN006', 'SN007', 'SN009', 'SN015', 'SN016', 'SN017', 'SN021', 'SN022', 'SN024'],
+            ['SN001', 'SN002', 'SN005', 'SN006', 'SN007', 'SN009', 'SN016', 'SN017', 'SN024'],
             $scenarios
         );
         $this->assertContains('SN009', $scenarios, 'Textile must include Cotton purchase SN009');
@@ -92,7 +91,7 @@ class FbrScenarioRunnerTest extends TestCase
         $scenarios = $this->registry->scenariosForSectorAndActivity('Exporter', 'All Other Sectors');
 
         $this->assertEqualsCanonicalizing(
-            ['SN001', 'SN002', 'SN005', 'SN006', 'SN007', 'SN015', 'SN016', 'SN017', 'SN021', 'SN022', 'SN024'],
+            ['SN001', 'SN002', 'SN005', 'SN006', 'SN007', 'SN016', 'SN017', 'SN024'],
             $scenarios
         );
         $this->assertContains('SN007', $scenarios, 'Exporter must include Zero-rated SN007');

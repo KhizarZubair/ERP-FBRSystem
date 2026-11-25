@@ -133,7 +133,7 @@ function CustomerDirectory({ companyId, canEdit }: { companyId: number; canEdit:
                     { key: "status", label: "Status", render: customer => <Badge tone={customer.is_active ? "success" : "neutral"}>{customer.is_active ? "Active" : "Inactive"}</Badge> },
                     { key: "actions", label: "Actions", render: customer => <div className="actions">
                         <Button variant="quiet" onClick={() => navigate(`/customers/${customer.id}`)}>{canEdit ? "Edit" : "View"}</Button>
-                        {canEdit && customer.ntn_cnic && (
+                        {canEdit && customer.registration_type === "Registered" && customer.ntn_cnic && (
                             <Button
                                 variant="quiet"
                                 disabled={busy !== null || verifyingId !== null}

@@ -119,11 +119,10 @@ class FbrEndUserLawyerVerificationTest extends TestCase
      */
     public function test_fbr_specification_section_10_sector_auto_resolutions(): void
     {
-        // 1. Steel Sector
+        // 1. Steel Sector (aligned with Live FBR IRIS Portal: SN003, SN004)
         $steelScenarios = $this->registry->scenariosForSectorAndActivity('Manufacturer', 'Steel');
         $this->assertContains('SN003', $steelScenarios, 'Steel must contain Melted Steel (SN003)');
         $this->assertContains('SN004', $steelScenarios, 'Steel must contain Ship Breaking (SN004)');
-        $this->assertContains('SN011', $steelScenarios, 'Steel must contain Toll Manufacturing (SN011)');
 
         // 2. FMCG Sector
         $fmcgScenarios = $this->registry->scenariosForSectorAndActivity('Manufacturer', 'FMCG');

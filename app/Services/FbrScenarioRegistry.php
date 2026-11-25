@@ -44,7 +44,8 @@ class FbrScenarioRegistry
                 'buyer_type' => 'Registered',
                 'rate' => '18%',
                 'hs_code' => '7206.1000',
-                'uom' => 'Metric Ton',
+                'uom' => 'MT',
+                'unit_price' => 170000.0,
                 'further_tax' => 0.0,
                 'is_supported' => true,
             ],
@@ -55,8 +56,9 @@ class FbrScenarioRegistry
                 'sale_type' => 'Ship breaking',
                 'buyer_type' => 'Registered',
                 'rate' => '18%',
-                'hs_code' => '8908.0000',
-                'uom' => 'Metric Ton',
+                'hs_code' => '7204.1010',
+                'uom' => 'MT',
+                'unit_price' => 160000.0,
                 'further_tax' => 0.0,
                 'is_supported' => true,
             ],
@@ -117,8 +119,9 @@ class FbrScenarioRegistry
                 'sale_type' => 'Cotton Ginners',
                 'buyer_type' => 'Registered',
                 'rate' => '18%',
-                'hs_code' => '5201.0019',
+                'hs_code' => '5201.0090',
                 'uom' => 'KG',
+                'retail_price' => 1000.0,
                 'further_tax' => 0.0,
                 'is_supported' => true,
             ],
@@ -142,7 +145,8 @@ class FbrScenarioRegistry
                 'buyer_type' => 'Registered',
                 'rate' => '18%',
                 'hs_code' => '7206.1000',
-                'uom' => 'Metric Ton',
+                'uom' => 'MT',
+                'unit_price' => 170000.0,
                 'further_tax' => 0.0,
                 'is_supported' => true,
             ],
@@ -154,7 +158,7 @@ class FbrScenarioRegistry
                 'buyer_type' => 'Registered',
                 'rate' => '18%',
                 'hs_code' => '2710.1210',
-                'uom' => 'Liters',
+                'uom' => 'Liter',
                 'further_tax' => 0.0,
                 'is_supported' => true,
             ],
@@ -164,7 +168,7 @@ class FbrScenarioRegistry
                 'description' => 'Electric power distribution under special sales tax regime',
                 'sale_type' => 'Electricity Supply to Retailers',
                 'buyer_type' => 'Registered',
-                'rate' => '18%',
+                'rate' => '5%',
                 'hs_code' => '2716.0000',
                 'uom' => 'KWH',
                 'further_tax' => 0.0,
@@ -229,6 +233,7 @@ class FbrScenarioRegistry
                 'rate' => '16%',
                 'hs_code' => '9801.0000',
                 'uom' => 'Numbers, pieces, units',
+                'retail_price' => 1000.0,
                 'further_tax' => 0.0,
                 'is_supported' => true,
             ],
@@ -243,6 +248,7 @@ class FbrScenarioRegistry
                 'sro_item_serial_no' => '10',
                 'hs_code' => '9801.0000',
                 'uom' => 'Numbers, pieces, units',
+                'retail_price' => 1000.0,
                 'further_tax' => 0.0,
                 'is_supported' => true,
             ],
@@ -253,6 +259,8 @@ class FbrScenarioRegistry
                 'sale_type' => 'Electric Vehicle',
                 'buyer_type' => 'Registered',
                 'rate' => '1%',
+                'sro_schedule_no' => '6th Schd Table III',
+                'sro_item_serial_no' => '20',
                 'hs_code' => '8703.8090',
                 'uom' => 'Numbers, pieces, units',
                 'further_tax' => 0.0,
@@ -290,7 +298,9 @@ class FbrScenarioRegistry
                 'description' => 'Compressed Natural Gas dispensing station sales',
                 'sale_type' => 'CNG Sales',
                 'buyer_type' => 'Registered',
-                'rate' => '18%',
+                'rate' => 'Rs.200',
+                'sro_schedule_no' => '581(1)/2024',
+                'sro_item_serial_no' => 'Region-I',
                 'hs_code' => '2711.2100',
                 'uom' => 'KG',
                 'further_tax' => 0.0,
@@ -314,11 +324,11 @@ class FbrScenarioRegistry
                 'description' => 'Pharmaceutical products & medicines chargeable under Eighth Schedule',
                 'sale_type' => 'Non-Adjustable Supplies',
                 'buyer_type' => 'Registered',
-                'rate' => '1%',
-                'hs_code' => '3004.9000',
-                'uom' => 'Numbers, pieces, units',
-                'sro_schedule_no' => 'Eighth Schedule, Table-1',
-                'sro_item_serial_no' => 'Item 1',
+                'rate' => '0%',
+                'hs_code' => '3004.9099',
+                'uom' => 'KG',
+                'sro_schedule_no' => 'Eighth Schedule Table 1',
+                'sro_item_serial_no' => '81',
                 'further_tax' => 0.0,
                 'is_supported' => true,
             ],
@@ -350,8 +360,9 @@ class FbrScenarioRegistry
                 'sale_type' => 'Goods at Reduced Rate',
                 'buyer_type' => 'Unregistered',
                 'rate' => '1%',
-                'sro_schedule_no' => 'Eighth Schedule, Table-1',
-                'sro_item_serial_no' => 'Item 1',
+                'sro_schedule_no' => 'EIGHTH SCHEDULE Table 1',
+                'sro_item_serial_no' => '70',
+                'extra_tax' => '',
                 'further_tax' => 0.0,
                 'is_supported' => true,
             ],
@@ -388,13 +399,19 @@ class FbrScenarioRegistry
     private function scenariosForSingleSectorAndActivity(string $activity, string $sec): array
     {
 
-        $base = ['SN001', 'SN002', 'SN005', 'SN006', 'SN007', 'SN015', 'SN016', 'SN017', 'SN021', 'SN022', 'SN024'];
+        // Live FBR IRIS Portal base set (8 scenarios; SN015/SN021/SN022 moved to dedicated sectors)
+        $base = ['SN001', 'SN002', 'SN005', 'SN006', 'SN007', 'SN016', 'SN017', 'SN024'];
         $retail = ['SN026', 'SN027', 'SN028', 'SN008'];
+        $isStandaloneSector = str_contains($sec, 'potassium chlorate')
+            || (str_contains($sec, 'mobile') && ! str_contains($sec, 'automobile'))
+            || str_contains($sec, 'cement')
+            || str_contains($sec, 'concrete block');
+
         $sectorScenario = match (true) {
-            str_contains($sec, 'steel') => ['SN003', 'SN004', 'SN011'],
-            str_contains($sec, 'potassium chlorate') => ['SN022'],
-            str_contains($sec, 'mobile') && ! str_contains($sec, 'automobile') => ['SN015'],
-            str_contains($sec, 'cement') || str_contains($sec, 'concrete block') => ['SN021'],
+            str_contains($sec, 'steel') => ['SN003', 'SN004'],
+            str_contains($sec, 'potassium chlorate') => ['SN001', 'SN002', 'SN022'],
+            str_contains($sec, 'mobile') && ! str_contains($sec, 'automobile') => ['SN001', 'SN002', 'SN015'],
+            str_contains($sec, 'cement') || str_contains($sec, 'concrete block') => ['SN001', 'SN002', 'SN021'],
             str_contains($sec, 'fmcg') => ['SN008'],
             str_contains($sec, 'textile') => ['SN009'],
             str_contains($sec, 'telecom') => ['SN010'],
@@ -409,10 +426,11 @@ class FbrScenarioRegistry
             default => [],
         };
 
-        // Section 10, pages 47–51. Keep each activity's official row distinct.
+        // Section 10, pages 47–51 + Live FBR IRIS Portal alignment.
         return match ($activity) {
             'manufacturer' => match (true) {
-                str_contains($sec, 'steel') => ['SN003', 'SN004', 'SN011'],
+                $isStandaloneSector => $sectorScenario,
+                str_contains($sec, 'steel') => ['SN003', 'SN004'],
                 str_contains($sec, 'fmcg') => [...$base, 'SN008'],
                 str_contains($sec, 'textile') => [...$base, 'SN009'],
                 str_contains($sec, 'telecom') => [...$base, 'SN010'],
@@ -426,15 +444,18 @@ class FbrScenarioRegistry
                 str_contains($sec, 'wholesale') || str_contains($sec, 'retail') => [...$base, 'SN026', 'SN027', 'SN028', 'SN008'],
                 default => $base,
             },
-            'importer' => array_values(array_unique([...$base, ...$sectorScenario])),
+            'importer' => $isStandaloneSector
+                ? $sectorScenario
+                : array_values(array_unique([...$base, ...$sectorScenario])),
             'distributor', 'wholesaler' => match (true) {
-                str_contains($sec, 'steel') => ['SN003', 'SN004', 'SN011', ...$retail],
+                str_contains($sec, 'steel') => ['SN003', 'SN004', ...$retail],
                 str_contains($sec, 'all other') => [...$base, ...$retail],
                 str_contains($sec, 'wholesale') || str_contains($sec, 'retail') => ['SN001', 'SN002', ...$retail],
                 default => array_values(array_unique([...$sectorScenario, ...$retail])),
             },
             'exporter' => match (true) {
-                str_contains($sec, 'steel') => [...$base, 'SN003', 'SN004', 'SN011'],
+                $isStandaloneSector => $sectorScenario,
+                str_contains($sec, 'steel') => [...$base, 'SN003', 'SN004'],
                 str_contains($sec, 'fmcg') => [...$base, 'SN008'],
                 str_contains($sec, 'textile') => [...$base, 'SN009'],
                 str_contains($sec, 'telecom') => [...$base, 'SN010'],
@@ -449,18 +470,20 @@ class FbrScenarioRegistry
                 default => $base,
             },
             'retailer' => match (true) {
-                str_contains($sec, 'steel') => ['SN003', 'SN004', 'SN011'],
+                str_contains($sec, 'steel') => ['SN003', 'SN004'],
                 str_contains($sec, 'all other') => [...$base, ...$retail],
                 str_contains($sec, 'pharmaceutical') => ['SN025', ...$retail],
                 default => array_values(array_unique([...$sectorScenario, ...$retail])),
             },
             'service provider' => match (true) {
+                $isStandaloneSector => $sectorScenario,
                 str_contains($sec, 'all other') => [...$base, 'SN018', 'SN019'],
                 str_contains($sec, 'wholesale') || str_contains($sec, 'retail') => [...$retail, 'SN018', 'SN019'],
                 default => array_values(array_unique([...$sectorScenario, 'SN018', 'SN019'])),
             },
             'other' => match (true) {
-                str_contains($sec, 'steel') => [...$base, 'SN003', 'SN004', 'SN011'],
+                $isStandaloneSector => $sectorScenario,
+                str_contains($sec, 'steel') => [...$base, 'SN003', 'SN004'],
                 str_contains($sec, 'fmcg') => [...$base, 'SN008'],
                 str_contains($sec, 'textile') => [...$base, 'SN009'],
                 str_contains($sec, 'telecom') => [...$base, 'SN010'],
@@ -558,7 +581,7 @@ class FbrScenarioRegistry
 
         $def = $definitions[$scenarioId];
         $quantity = 1.0;
-        $unitPrice = 1000.0;
+        $unitPrice = (float) ($def['unit_price'] ?? 1000.0);
         $ratePercent = (float) str_replace(['%', 'Rs.'], '', $def['rate'] ?? '18%');
         $retailPrice = (float) ($def['retail_price'] ?? 0.0);
         $furtherTax = (float) ($def['further_tax'] ?? 0.0);
@@ -580,6 +603,10 @@ class FbrScenarioRegistry
             $taxBase = $quantity * $unitPrice;
             $salesTaxApplicable = round(($taxBase * 0.18) + ($quantity * 60.0), 2);
             $retailPrice = 1000.0;
+        } elseif ($scenarioId === 'SN023') {
+            // CNG Sales fixed statutory rate (Rs.200 per KG under SRO 581(1)/2024)
+            $taxBase = $quantity * $unitPrice;
+            $salesTaxApplicable = round($quantity * 200.0, 2);
         } elseif ($retailPrice > 0) {
             $taxBase = $quantity * $retailPrice;
             $salesTaxApplicable = round($taxBase * ($ratePercent / 100), 2);
@@ -623,7 +650,7 @@ class FbrScenarioRegistry
                 'quantity' => $quantity,
                 'totalValues' => $totalValues,
                 'valueSalesExcludingST' => $taxBase,
-                'fixedNotifiedValueOrRetailPrice' => $retailPrice,
+                'fixedNotifiedValueOrRetailPrice' => $retailPrice > 0 ? $retailPrice : $taxBase,
                 'salesTaxApplicable' => $salesTaxApplicable,
                 'salesTaxWithheldAtSource' => 0.0,
                 'extraTax' => $extraTax,
