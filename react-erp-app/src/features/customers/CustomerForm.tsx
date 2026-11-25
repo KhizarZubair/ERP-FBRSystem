@@ -87,10 +87,8 @@ export function CustomerForm({ companyId, customer }: { companyId: number; custo
                 newErrors.cnic = ["CNIC must be 13 digits without dashes."];
             }
         } else {
-            if (!cnicValue) {
-                newErrors.cnic = ["Buyer CNIC is required for unregistered customers."];
-            } else if (!/^[0-9]{13}$/.test(cnicValue)) {
-                newErrors.cnic = ["Buyer CNIC must be exactly 13 digits without dashes."];
+            if (cnicValue && !/^[0-9]{13}$/.test(cnicValue)) {
+                newErrors.cnic = ["Buyer CNIC must be 13 digits without dashes if provided."];
             }
         }
 
@@ -156,7 +154,7 @@ export function CustomerForm({ companyId, customer }: { companyId: number; custo
                     <small className="field-hint">
                         {isRegistered
                             ? "Registered buyers require a valid 7 or 8-digit NTN (Used for Scenario SN001)."
-                            : "Unregistered buyers require a 13-digit CNIC (Used for Scenario SN002). NTN is not required."}
+                            : "Unregistered buyers do not require NTN or CNIC (13-digit CNIC optional; used for Scenario SN002)."}
                     </small>
                 </div>
 
@@ -195,7 +193,7 @@ export function CustomerForm({ companyId, customer }: { companyId: number; custo
 
                 {/* CNIC Field: If Registered, optional. If Unregistered, required and NTN is hidden! */}
                 <div className="field">
-                    <label htmlFor="customer-cnic">Buyer CNIC {isRegistered ? "(Optional)" : "*"}</label>
+                    <label htmlFor="customer-cnic">Buyer CNIC (Optional)</label>
                     <input
                         id="customer-cnic"
                         name="cnic"
@@ -203,13 +201,13 @@ export function CustomerForm({ companyId, customer }: { companyId: number; custo
                         inputMode="numeric"
                         pattern="[0-9]{13}"
                         maxLength={13}
-                        required={!isRegistered}
+                        required={false}
                         placeholder="13-digit CNIC without dashes (e.g. 4210112345671)"
                         aria-invalid={!!errors.cnic}
                         onChange={event => change("cnic", event.target.value)}
                     />
                     <small className={errors.cnic ? "field-error" : "field-hint"}>
-                        {errors.cnic?.[0] || (isRegistered ? "Optional 13-digit CNIC without dashes." : "13-digit CNIC without dashes. Required for FBR Unregistered Buyer invoices.")}
+                        {errors.cnic?.[0] || "Optional 13-digit CNIC without dashes."}
                     </small>
                 </div>
 

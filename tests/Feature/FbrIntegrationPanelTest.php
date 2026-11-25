@@ -69,6 +69,8 @@ class FbrIntegrationPanelTest extends TestCase
     {
         $this->actingAs($user)->postJson('/api/company/sandbox-token', ['sandbox_token' => $token])->assertOk();
         $this->postJson('/api/company/verify-fbr')->assertOk()->assertJsonPath('verified', true);
+        Http::assertSent(fn ($request) => $request->url() === config('fbr.statl_url') && $request->method() === 'POST');
+        Http::assertSent(fn ($request) => $request->url() === config('fbr.registration_type_url') && $request->method() === 'POST');
     }
 
     public function test_status_uses_official_activity_sector_mapping_not_manual_scenario_override(): void
@@ -128,6 +130,45 @@ class FbrIntegrationPanelTest extends TestCase
             ->assertStatus(503)
             ->assertJsonPath('message', 'FBR Get_Reg_Type verification request could not be completed.')
             ->assertJsonPath('errors.get_reg_type.0', 'FBR Get_Reg_Type endpoint did not respond before the 12-second timeout. This indicates an FBR gateway or network timeout, not a confirmed invalid token. Retry later; if it continues, contact PRAL.');
+    }
+
+    public function test_get_reg_type_structured_http_500_body_is_parsed_as_unregistered(): void
+    {
+        [$user] = $this->companyUser();
+        Http::fake([
+            config('fbr.statl_url') => Http::response(['status code' => '00', 'status' => 'Active']),
+            config('fbr.registration_type_url') => Http::response([
+                'statuscode' => '01',
+                'REGISTRATION_NO' => '0123456',
+                'REGISTRATION_TYPE' => 'unregistered',
+            ], 500),
+        ]);
+
+        $this->actingAs($user)->postJson('/api/company/sandbox-token', ['sandbox_token' => 'sandbox-test-token'])->assertOk();
+        $this->postJson('/api/company/verify-fbr')
+            ->assertUnprocessable()
+            ->assertJsonPath('verified', false)
+            ->assertJsonPath('registration_type', 'unregistered');
+        Http::assertSent(fn ($request) => $request->url() === config('fbr.statl_url') && $request->method() === 'POST');
+        Http::assertSent(fn ($request) => $request->url() === config('fbr.registration_type_url') && $request->method() === 'POST');
+    }
+
+    public function test_buyer_verification_offline_fallback_does_not_claim_unregistered_status(): void
+    {
+        [$user, $company] = $this->companyUser();
+        $company->forceFill(['fbr_environment' => 'sandbox'])->save();
+        Http::fake([
+            config('fbr.statl_url') => function () {
+                throw new ConnectionException('Connection timed out');
+            },
+        ]);
+        $this->actingAs($user)->postJson('/api/company/sandbox-token', ['sandbox_token' => 'sandbox-test-token'])->assertOk();
+
+        $this->getJson('/api/v1/companies/'.$company->id.'/fbr/buyer-verification?registration_number=0123456')
+            ->assertOk()
+            ->assertJsonPath('data.is_offline', true)
+            ->assertJsonPath('data.registration_type', 'Unknown')
+            ->assertJsonPath('data.source', 'offline_fallback');
     }
 
     public function test_certification_rejects_a_token_different_from_the_verified_saved_token(): void
@@ -194,7 +235,6 @@ class FbrIntegrationPanelTest extends TestCase
         $this->postJson('/api/company/production-token', ['production_token' => 'production-secret'])
             ->assertUnprocessable();
     }
-
 
     public function test_multi_company_operations_are_strictly_scoped_by_company_id(): void
     {

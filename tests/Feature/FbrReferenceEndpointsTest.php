@@ -199,11 +199,11 @@ class FbrReferenceEndpointsTest extends TestCase
             ->assertJsonPath('data.registration_type', 'Registered')->assertJsonPath('data.source', 'fbr');
         $this->getJson($buyerUrl)->assertOk()->assertJsonPath('data.source', 'cache');
         Http::assertSent(fn ($request) => str_ends_with($request->url(), '/statl')
-            && $request->method() === 'GET'
+            && $request->method() === 'POST'
             && $request['regno'] === '07887621'
             && $request['date'] === '2026-02-24');
         Http::assertSent(fn ($request) => str_ends_with($request->url(), '/Get_Reg_Type')
-            && $request->method() === 'GET'
+            && $request->method() === 'POST'
             && $request['Registration_No'] === '07887621');
 
         $other = User::factory()->create()->fresh();

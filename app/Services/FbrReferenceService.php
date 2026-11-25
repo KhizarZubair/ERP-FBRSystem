@@ -12,7 +12,7 @@ use Throwable;
 
 class FbrReferenceService
 {
-    /** @return array{active: bool, status: string, registration_type: string, source: string} */
+    /** @return array{active: bool, status: string, registration_type: string, source: string, is_offline?: bool, message?: string} */
     public function buyerVerification(Company $company, string $registrationNumber, string $date): array
     {
         $environment = Company::whereKey($company->id)->value('fbr_environment');
@@ -30,14 +30,15 @@ class FbrReferenceService
         try {
             $client = Http::withToken($integration->token)->acceptJson()->asJson()->connectTimeout(3)->timeout(12)
                 ->withOptions(['allow_redirects' => false]);
-            $statusResponse = $client->send('GET', config('fbr.statl_url'), ['json' => ['regno' => $registrationNumber, 'date' => $date]]);
-            $typeResponse = $client->send('GET', config('fbr.registration_type_url'), ['json' => ['Registration_No' => $registrationNumber]]);
+            $statusResponse = $client->post(config('fbr.statl_url'), ['regno' => $registrationNumber, 'date' => $date]);
+            $typeResponse = $client->post(config('fbr.registration_type_url'), ['Registration_No' => $registrationNumber]);
             if (in_array($statusResponse->status(), [401, 403], true) || in_array($typeResponse->status(), [401, 403], true)) {
                 throw ValidationException::withMessages(['buyer_ntn_cnic' => 'FBR rejected the configured token while verifying the buyer.']);
             }
             $status = $statusResponse->json();
             $type = $typeResponse->json();
-            if (! $statusResponse->successful() || ! $typeResponse->successful() || ! is_array($status) || ! is_array($type)) {
+            $typeHasStructuredBody = is_array($type) && (array_key_exists('REGISTRATION_TYPE', $type) || array_key_exists('statuscode', $type));
+            if (! $statusResponse->successful() || (! $typeResponse->successful() && ! $typeHasStructuredBody) || ! is_array($status) || ! is_array($type)) {
                 throw new RuntimeException('Invalid buyer verification response.');
             }
             $statusText = trim((string) ($status['status'] ?? ''));
@@ -56,7 +57,16 @@ class FbrReferenceService
         } catch (ValidationException $exception) {
             throw $exception;
         } catch (Throwable $exception) {
-            abort(503, 'FBR buyer verification is temporarily unavailable.');
+            report($exception);
+
+            return [
+                'active' => false,
+                'status' => 'FBR Gateway Offline',
+                'registration_type' => 'Unknown',
+                'source' => 'offline_fallback',
+                'is_offline' => true,
+                'message' => 'FBR verification is unavailable. This buyer has not been verified; save locally only if appropriate and retry verification later.',
+            ];
         }
     }
 

@@ -6,9 +6,9 @@ use App\Enums\FbrIntegrationStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\CompanyScenarioCertification;
+use App\Services\CompanyService;
 use App\Services\FbrErrorCatalog;
 use App\Services\FbrScenarioRegistry;
-use App\Services\CompanyService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -208,9 +208,9 @@ class FbrIntegrationController extends Controller
                 ->withOptions(['allow_redirects' => false]);
             $failedEndpoint = 'STATL';
             try {
-                $statusResponse = $client->send('GET', config('fbr.statl_url'), ['json' => ['regno' => $ntn, 'date' => $date]]);
+                $statusResponse = $client->post(config('fbr.statl_url'), ['regno' => $ntn, 'date' => $date]);
                 $failedEndpoint = 'Get_Reg_Type';
-                $typeResponse = $client->send('GET', config('fbr.registration_type_url'), ['json' => ['Registration_No' => $ntn]]);
+                $typeResponse = $client->post(config('fbr.registration_type_url'), ['Registration_No' => $ntn]);
             } catch (ConnectionException $exception) {
                 report($exception);
                 $field = $failedEndpoint === 'STATL' ? 'statl' : 'get_reg_type';
@@ -226,19 +226,22 @@ class FbrIntegrationController extends Controller
                 ], 503)->header('Cache-Control', 'no-store, private');
             }
 
-            if (! $statusResponse->successful() || ! $typeResponse->successful()) {
+            $status = $statusResponse->json();
+            $type = $typeResponse->json();
+            $typeHasStructuredBody = is_array($type)
+                && ! in_array($typeResponse->status(), [401, 403], true)
+                && (array_key_exists('REGISTRATION_TYPE', $type) || array_key_exists('statuscode', $type));
+            if (! $statusResponse->successful() || (! $typeResponse->successful() && ! $typeHasStructuredBody)) {
                 $errors = [];
                 if (! $statusResponse->successful()) {
                     $errors['statl'] = [in_array($statusResponse->status(), [401, 403], true) ? 'FBR rejected the Sandbox Token for STATL. Check your PRAL Sandbox Token.' : 'STATL request failed with HTTP '.$statusResponse->status().'. Check the NTN and retry.'];
                 }
-                if (! $typeResponse->successful()) {
+                if (! $typeResponse->successful() && ! $typeHasStructuredBody) {
                     $errors['get_reg_type'] = [in_array($typeResponse->status(), [401, 403], true) ? 'FBR rejected the Sandbox Token for Get_Reg_Type. Check your PRAL Sandbox Token.' : 'Get_Reg_Type request failed with HTTP '.$typeResponse->status().'. Check the NTN and retry.'];
                 }
 
                 return response()->json(['verified' => false, 'message' => 'FBR taxpayer verification failed. Review the details below.', 'errors' => $errors], 422);
             }
-            $status = $statusResponse->json();
-            $type = $typeResponse->json();
             if (! is_array($status) || ! is_array($type)) {
                 return response()->json(['verified' => false, 'message' => 'FBR returned an unreadable taxpayer verification response.'], 502);
             }
