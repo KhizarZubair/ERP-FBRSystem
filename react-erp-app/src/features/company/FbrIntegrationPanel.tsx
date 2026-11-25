@@ -6,7 +6,7 @@ import type { FbrAssignedScenario, FbrIntegrationStatus, FbrScenarioResult } fro
 
 type RunState = Record<string, "pending" | "checking" | "passed" | "failed">;
 
-export function FbrIntegrationPanel() {
+export function FbrIntegrationPanel({ companyId }: { companyId: number }) {
     const [status, setStatus] = useState<FbrIntegrationStatus | null>(null);
     const [sandboxToken, setSandboxToken] = useState("");
     const [productionToken, setProductionToken] = useState("");
@@ -26,14 +26,14 @@ export function FbrIntegrationPanel() {
     async function reloadStatus() {
         setLoadingStatus(true);
         try {
-            const data = await fbrIntegrationApi.status();
+            const data = await fbrIntegrationApi.status(companyId);
             setStatus(data);
             setResults(data.results || []);
         } catch (failure) {
             setError(failure instanceof Error ? failure.message : "Could not load FBR integration status.");
         } finally { setLoadingStatus(false); }
     }
-    useEffect(() => { void reloadStatus(); }, []);
+    useEffect(() => { void reloadStatus(); }, [companyId]);
 
     const verified = status?.verified === true;
     const allPassed = status?.all_passed === true;
@@ -59,7 +59,7 @@ export function FbrIntegrationPanel() {
         setError("");
         setNotice("");
         try {
-            await fbrIntegrationApi.saveSandboxToken(sandboxToken.trim());
+            await fbrIntegrationApi.saveSandboxToken(companyId, sandboxToken.trim());
             setSandboxToken("");
             setNotice("PRAL Sandbox Token saved securely in database.");
             await reloadStatus();
@@ -81,10 +81,10 @@ export function FbrIntegrationPanel() {
         setNotice("");
         try {
             if (sandboxToken.trim()) {
-                await fbrIntegrationApi.saveSandboxToken(sandboxToken.trim());
+                await fbrIntegrationApi.saveSandboxToken(companyId, sandboxToken.trim());
                 setSandboxToken("");
             }
-            const result = await fbrIntegrationApi.verify();
+            const result = await fbrIntegrationApi.verify(companyId);
             setStatus(current => current ? { ...current, verified: result.verified, verification: result, sandbox_configured: true } : null);
             if (!result.verified) {
                 setVerificationError(result.message || "FBR did not verify this company.");
@@ -156,12 +156,12 @@ export function FbrIntegrationPanel() {
 
         try {
             if (sandboxToken.trim()) {
-                await fbrIntegrationApi.saveSandboxToken(sandboxToken.trim());
+                await fbrIntegrationApi.saveSandboxToken(companyId, sandboxToken.trim());
                 setSandboxToken("");
             }
             const isFullRun = !ids || ids.length === 0 || targetIds.length === assignedScenarios.filter(s => s.is_supported).length;
             if (isFullRun) {
-                const response = await fbrIntegrationApi.certify(undefined);
+                const response = await fbrIntegrationApi.certify(companyId, undefined);
                 setResults(response.results || []);
                 const updatedState: RunState = { ...nextState };
                 (response.results || []).forEach(res => {
@@ -171,7 +171,7 @@ export function FbrIntegrationPanel() {
             } else {
                 for (const id of targetIds) {
                     setRunState(current => ({ ...current, [id]: "checking" }));
-                    const response = await fbrIntegrationApi.certify(undefined, id);
+                    const response = await fbrIntegrationApi.certify(companyId, undefined, id);
                     setResults(response.results || []);
                     const currentResult = (response.results || []).find(result => result.scenario_id === id);
                     setRunState(current => ({ ...current, [id]: currentResult?.passed ? "passed" : "failed" }));
@@ -198,7 +198,7 @@ export function FbrIntegrationPanel() {
         if (!productionToken.trim()) { setError("Enter the Production Token first."); return; }
         setSavingProduction(true); setError(""); setNotice("");
         try {
-            await fbrIntegrationApi.saveProductionToken(productionToken.trim());
+            await fbrIntegrationApi.saveProductionToken(companyId, productionToken.trim());
             setProductionToken("");
             setNotice("Production token configured in database. Live invoice submission enabled.");
             await reloadStatus();

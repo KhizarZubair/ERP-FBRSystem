@@ -195,6 +195,63 @@ class FbrIntegrationPanelTest extends TestCase
             ->assertUnprocessable();
     }
 
+
+    public function test_multi_company_operations_are_strictly_scoped_by_company_id(): void
+    {
+        $user = User::factory()->create()->fresh();
+        $companyA = app(CompanyService::class)->createOwnedCompany($user, ['company_name' => 'Company A']);
+        $companyA->forceFill([
+            'ntn_cnic' => '0123456',
+            'province' => 'Sindh',
+            'address' => 'Karachi',
+            'business_activity' => ['Service Provider'],
+            'sector' => ['Services'],
+        ])->save();
+
+        $companyB = app(CompanyService::class)->createOwnedCompany($user, ['company_name' => 'Company B']);
+        $companyB->forceFill([
+            'ntn_cnic' => '7654321',
+            'province' => 'Punjab',
+            'address' => 'Lahore',
+            'business_activity' => ['Manufacturer'],
+            'sector' => ['Steel'],
+        ])->save();
+
+        $this->actingAs($user)->getJson('/api/company/fbr/status')->assertUnprocessable();
+
+        $this->actingAs($user)->postJson('/api/company/sandbox-token', [
+            'company_id' => $companyB->id,
+            'sandbox_token' => 'company-b-token',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('fbr_integrations', ['company_id' => $companyB->id, 'environment' => 'sandbox']);
+        $this->assertDatabaseMissing('fbr_integrations', ['company_id' => $companyA->id, 'environment' => 'sandbox']);
+
+        $this->actingAs($user)->getJson('/api/company/fbr/status?company_id='.$companyB->id)
+            ->assertOk()
+            ->assertJsonPath('sandbox_configured', true)
+            ->assertJsonPath('scenarios.0.id', 'SN003');
+
+        $this->actingAs($user)->getJson('/api/company/fbr/status?company_id='.$companyA->id)
+            ->assertOk()
+            ->assertJsonPath('sandbox_configured', false)
+            ->assertJsonPath('scenarios.0.id', 'SN018');
+    }
+
+    public function test_user_cannot_access_another_companys_fbr_integration_via_company_id(): void
+    {
+        [$userA] = $this->companyUser();
+        [$userB, $companyB] = $this->companyUser();
+
+        $this->actingAs($userA)->getJson('/api/company/fbr/status?company_id='.$companyB->id)
+            ->assertNotFound();
+
+        $this->actingAs($userA)->postJson('/api/company/sandbox-token', [
+            'company_id' => $companyB->id,
+            'sandbox_token' => 'unauthorized-token',
+        ])->assertNotFound();
+    }
+
     public function test_fbr_integration_endpoints_require_authentication(): void
     {
         $this->getJson('/api/company/fbr/status')->assertUnauthorized();

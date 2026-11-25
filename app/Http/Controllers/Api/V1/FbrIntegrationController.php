@@ -8,6 +8,7 @@ use App\Models\Company;
 use App\Models\CompanyScenarioCertification;
 use App\Services\FbrErrorCatalog;
 use App\Services\FbrScenarioRegistry;
+use App\Services\CompanyService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,6 +23,7 @@ class FbrIntegrationController extends Controller
     public function __construct(
         private FbrScenarioRegistry $registry,
         private FbrErrorCatalog $errors,
+        private CompanyService $companies,
     ) {}
 
     private function stateStore()
@@ -29,14 +31,40 @@ class FbrIntegrationController extends Controller
         return Cache::store(config('fbr.reference_cache_store'));
     }
 
-    private function company(Request $request): Company
+    private function company(Request $request, bool $write = false): Company
     {
         $user = $request->user();
         abort_unless($user, 401);
-        $company = $user->companies()->where('companies.is_active', true)->wherePivot('is_active', true)->first();
-        abort_unless($company, 404, 'Complete your Company Profile first.');
 
-        return $company;
+        $rawCompanyId = $request->input('company_id') ?? $request->header('X-Company-Id');
+        if ($rawCompanyId !== null && $rawCompanyId !== '') {
+            $companyIdString = trim((string) $rawCompanyId);
+            if (! ctype_digit($companyIdString) || (int) $companyIdString < 1) {
+                abort(422, 'Invalid company_id provided.');
+            }
+
+            return $this->companies->workspace($user, (int) $companyIdString, $write);
+        }
+
+        if ($user->isSuperAdmin()) {
+            abort(422, 'Active company_id is required for Super Admin FBR operations.');
+        }
+
+        $activeCompanies = $user->companies()
+            ->where('companies.is_active', true)
+            ->wherePivot('is_active', true)
+            ->limit(2)
+            ->get(['companies.id']);
+
+        if ($activeCompanies->isEmpty()) {
+            abort(404, 'Complete your Company Profile first.');
+        }
+
+        if ($activeCompanies->count() > 1) {
+            abort(422, 'Multiple active companies found. Provide company_id.');
+        }
+
+        return $this->companies->workspace($user, (int) $activeCompanies->first()->id, $write);
     }
 
     private function verifiedKey(Company $company): string
@@ -95,7 +123,7 @@ class FbrIntegrationController extends Controller
 
     public function status(Request $request): JsonResponse
     {
-        $company = $this->company($request);
+        $company = $this->company($request, false);
         $verified = $this->stateStore()->get($this->verifiedKey($company), []);
         $certification = $this->currentCertification($company);
         $sandbox = $company->fbrIntegrations()->where('environment', 'sandbox')->first();
@@ -142,7 +170,7 @@ class FbrIntegrationController extends Controller
 
     public function verifyFbr(Request $request): JsonResponse
     {
-        $company = $this->company($request);
+        $company = $this->company($request, true);
         if (blank($company->business_activity) || blank($company->sector)) {
             throw ValidationException::withMessages([
                 'business_activity' => 'Select the company business activity and sector from the official FBR list before verification.',
@@ -269,7 +297,7 @@ class FbrIntegrationController extends Controller
 
     public function saveSandboxToken(Request $request): JsonResponse
     {
-        $company = $this->company($request);
+        $company = $this->company($request, true);
         $data = $request->validate([
             'sandbox_token' => ['required', 'string', 'max:4096', 'regex:/^\S+$/'],
         ]);
@@ -292,7 +320,7 @@ class FbrIntegrationController extends Controller
 
     public function runSandboxCertification(Request $request): JsonResponse
     {
-        $company = $this->company($request);
+        $company = $this->company($request, true);
 
         $assignedScenarios = $this->registry->forCompany($company);
         if (empty($assignedScenarios)) {
@@ -463,7 +491,7 @@ class FbrIntegrationController extends Controller
 
     public function saveProductionToken(Request $request): JsonResponse
     {
-        $company = $this->company($request);
+        $company = $this->company($request, true);
         $verified = $this->stateStore()->get($this->verifiedKey($company), []);
         $certification = $this->currentCertification($company);
         $profileFingerprint = $this->profileFingerprint($company);

@@ -43,24 +43,33 @@ export type FbrIntegrationStatus = {
 };
 
 export const fbrIntegrationApi = {
-    status: () => api<FbrIntegrationStatus>("/api/company/fbr/status"),
-    verify: (sandbox_token?: string) =>
+    status: (companyId: number) =>
+        api<FbrIntegrationStatus>(`/api/company/fbr/status?company_id=${encodeURIComponent(String(companyId))}`),
+    verify: (companyId: number, sandbox_token?: string) =>
         api<FbrVerification>("/api/company/verify-fbr", {
             method: "POST",
-            body: JSON.stringify(sandbox_token ? { sandbox_token } : {}),
+            body: JSON.stringify({ company_id: companyId, ...(sandbox_token ? { sandbox_token } : {}) }),
         }),
-    saveSandboxToken: (sandbox_token: string) =>
+    saveSandboxToken: (companyId: number, sandbox_token: string) =>
         api<{ saved: boolean; sandbox_configured: boolean }>("/api/company/sandbox-token", {
             method: "POST",
-            body: JSON.stringify({ sandbox_token }),
+            body: JSON.stringify({ company_id: companyId, sandbox_token }),
         }),
-    certify: (sandbox_token?: string, scenario_id?: string) =>
+    certify: (companyId: number, sandbox_token?: string, scenario_id?: string) =>
         api<{ all_passed: boolean; results: FbrScenarioResult[]; checked_at: string }>(
             "/api/company/run-sandbox-certification",
-            { method: "POST", body: JSON.stringify({ ...(sandbox_token ? { sandbox_token } : {}), ...(scenario_id ? { scenario_id } : {}) }) },
+            {
+                method: "POST",
+                body: JSON.stringify({
+                    company_id: companyId,
+                    ...(sandbox_token ? { sandbox_token } : {}),
+                    ...(scenario_id ? { scenario_id } : {}),
+                }),
+            },
         ),
-    saveProductionToken: (production_token: string) =>
+    saveProductionToken: (companyId: number, production_token: string) =>
         api<{ saved: boolean; production_configured: boolean }>("/api/company/production-token", {
-            method: "POST", body: JSON.stringify({ production_token }),
+            method: "POST",
+            body: JSON.stringify({ company_id: companyId, production_token }),
         }),
 };

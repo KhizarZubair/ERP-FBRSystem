@@ -150,7 +150,7 @@ function ExistingCompany({ companyId, onRefresh }: { companyId: number; onRefres
         {error ? <Notice tone="warning">{error} <Button variant="quiet" onClick={() => { void load(); }}>Try again</Button></Notice>
             : !company ? <p role="status">Loading company details…</p>
                 : editing ? <CompanyForm company={company} onSaved={updated} onCancel={() => setEditing(false)} />
-                    : <><CompanyDetailsView company={company} /><FbrIntegrationPanel /></>}
+                    : <><CompanyDetailsView company={company} /><FbrIntegrationPanel companyId={company.id} key={company.id} /></>}
         {showFbrGuidance && <FbrGuidanceModal onClose={() => setShowFbrGuidance(false)} />}
     </>;
 }

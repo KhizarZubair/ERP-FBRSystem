@@ -14,11 +14,11 @@ export type CompanyMember={id:number;name:string;email:string;role:"owner"|"memb
 export type FbrScenarioResult = {scenario_id:string;title:string;passed:boolean;fbr_invoice_no:string|null;error_code:string|null;error:string|null;raw_response:unknown};
 export type FbrIntegrationStatus = {verified:boolean;verification:{verified:boolean;status?:string;registration_type?:string;checked_at?:string}|null;results:FbrScenarioResult[];all_passed:boolean;production_configured:boolean};
 export const fbrIntegrationApi = {
- status:()=>api<FbrIntegrationStatus>("/api/company/fbr/status"),
- saveSandboxToken:(sandbox_token:string)=>api<{saved:boolean;sandbox_configured:boolean}>("/api/company/sandbox-token",{method:"POST",body:JSON.stringify({sandbox_token})}),
- verify:(sandbox_token?:string)=>api<{verified:boolean;status?:string;registration_type?:string;message?:string}>("/api/company/verify-fbr",{method:"POST",body:JSON.stringify(sandbox_token ? {sandbox_token} : {})}),
- certify:(sandbox_token?:string,scenario_id?:string)=>api<{all_passed:boolean;results:FbrScenarioResult[];checked_at:string}>("/api/company/run-sandbox-certification",{method:"POST",body:JSON.stringify({...(sandbox_token ? {sandbox_token} : {}),...(scenario_id ? {scenario_id} : {})})}),
- saveProductionToken:(production_token:string)=>api<{saved:boolean;production_configured:boolean}>("/api/company/production-token",{method:"POST",body:JSON.stringify({production_token})}),
+ status:(companyId:number)=>api<FbrIntegrationStatus>(`/api/company/fbr/status?company_id=${encodeURIComponent(String(companyId))}`),
+ saveSandboxToken:(companyId:number,sandbox_token:string)=>api<{saved:boolean;sandbox_configured:boolean}>("/api/company/sandbox-token",{method:"POST",body:JSON.stringify({company_id:companyId,sandbox_token})}),
+ verify:(companyId:number,sandbox_token?:string)=>api<{verified:boolean;status?:string;registration_type?:string;message?:string}>("/api/company/verify-fbr",{method:"POST",body:JSON.stringify({company_id:companyId,...(sandbox_token ? {sandbox_token} : {})})}),
+ certify:(companyId:number,sandbox_token?:string,scenario_id?:string)=>api<{all_passed:boolean;results:FbrScenarioResult[];checked_at:string}>("/api/company/run-sandbox-certification",{method:"POST",body:JSON.stringify({company_id:companyId,...(sandbox_token ? {sandbox_token} : {}),...(scenario_id ? {scenario_id} : {})})}),
+ saveProductionToken:(companyId:number,production_token:string)=>api<{saved:boolean;production_configured:boolean}>("/api/company/production-token",{method:"POST",body:JSON.stringify({company_id:companyId,production_token})}),
 };
 export const companyApi={
  get:(id:number)=>api<{data:CompanyDetails}>("/api/v1/companies/"+id),
