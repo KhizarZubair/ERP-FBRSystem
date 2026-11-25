@@ -210,4 +210,77 @@ class FbrReferenceEndpointsTest extends TestCase
         $this->actingAs($other)->getJson($buyerUrl)->assertNotFound();
         Http::assertSentCount(5);
     }
+
+    public function test_sro_reference_endpoints_auto_resolve_workspace_province_and_default_date(): void
+    {
+        $user = User::factory()->create()->fresh();
+        $company = $this->company($user);
+        $company->forceFill(['province' => 'Sindh'])->save();
+
+        Http::fake([
+            config('fbr.provinces_url') => Http::response([
+                ['stateProvinceCode' => 7, 'stateProvinceDesc' => 'PUNJAB'],
+                ['stateProvinceCode' => 8, 'stateProvinceDesc' => 'SINDH'],
+            ]),
+            config('fbr.sro_schedules_url').'*' => Http::response([
+                ['srO_ID' => 12, 'srO_DESC' => 'EIGHTH SCHEDULE Table 1'],
+            ]),
+            config('fbr.sro_items_url').'*' => Http::response([
+                ['srO_ITEM_ID' => 70, 'srO_ITEM_DESC' => '70'],
+            ]),
+        ]);
+
+        $base = '/api/v1/companies/'.$company->id.'/fbr';
+        $this->actingAs($user)->getJson($base.'/sro-schedules?rate_id=734')
+            ->assertOk()
+            ->assertJsonPath('data.0.code', '12')
+            ->assertJsonPath('data.0.description', 'EIGHTH SCHEDULE Table 1');
+
+        $this->getJson($base.'/sro-items?sro_id=12')
+            ->assertOk()
+            ->assertJsonPath('data.0.code', '70')
+            ->assertJsonPath('data.0.description', '70');
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/SroSchedule')
+            && str_contains($request->url(), 'origination_supplier_csv=8')
+            && str_contains($request->url(), 'rate_id=734')
+            && str_contains($request->url(), 'date='.now()->format('d-M-Y')));
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/SROItem')
+            && str_contains($request->url(), 'sro_id=12')
+            && str_contains($request->url(), 'date='.now()->toDateString()));
+    }
+
+    public function test_empty_sro_reference_response_returns_200_instead_of_503(): void
+    {
+        $user = User::factory()->create()->fresh();
+        $company = $this->company($user);
+        $company->forceFill(['province' => 'Sindh'])->save();
+
+        Http::fake([
+            config('fbr.provinces_url') => Http::response([
+                ['stateProvinceCode' => 8, 'stateProvinceDesc' => 'SINDH'],
+            ]),
+            config('fbr.sro_schedules_url').'*' => Http::response([]),
+            config('fbr.sro_items_url').'*' => Http::response([]),
+        ]);
+
+
+        $base = '/api/v1/companies/'.$company->id.'/fbr';
+        $this->actingAs($user)->getJson($base.'/sro-schedules?rate_id=728')
+            ->assertOk()
+            ->assertExactJson([
+                'data' => [],
+                'meta' => [
+                    'has_more' => false,
+                    'stale' => false,
+                    'source' => 'fbr',
+                    'fetched_at' => now()->toAtomString(),
+                ],
+            ]);
+
+        $this->getJson($base.'/sro-items?sro_id=8')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
+
 }

@@ -2,22 +2,35 @@ import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { Input, Select } from "../../components/ui";
 
-type ReferenceResult = { data: { code: string; description: string }[]; meta: { stale: boolean } };
+export type FbrReferenceRow = { code: string; description: string };
+type ReferenceResult = { data: FbrReferenceRow[]; meta: { stale: boolean } };
 
 export function FbrReferenceSelect({
     label,
     path,
     value,
     onChange,
+    onSelectRecord,
     error,
+    hint,
+    placeholder,
+    required = true,
+    disabled = false,
+    skipFetch = false,
     autoSelectSingle = false,
     autoSelectStandardRate = false,
 }: {
     label: string;
-    path: string;
+    path: string | null;
     value: string;
     onChange: (value: string) => void;
+    onSelectRecord?: (record: FbrReferenceRow | null) => void;
     error?: string;
+    hint?: string;
+    placeholder?: string;
+    required?: boolean;
+    disabled?: boolean;
+    skipFetch?: boolean;
     autoSelectSingle?: boolean;
     autoSelectStandardRate?: boolean;
 }) {
@@ -25,11 +38,12 @@ export function FbrReferenceSelect({
     const [revision, setRevision] = useState(0);
     const [result, setResult] = useState<{ path: string; data?: ReferenceResult; failed?: boolean }>();
     const [manual, setManual] = useState(false);
-    const current = result?.path === path ? result : undefined;
-    const loading = requested && !current;
+    const current = path && result?.path === path ? result : undefined;
+    const shouldFetch = Boolean(path) && !skipFetch;
+    const loading = shouldFetch && requested && !current;
 
     useEffect(() => {
-        if (!requested) return;
+        if (!requested || !path || skipFetch) return;
         const controller = new AbortController();
         api<ReferenceResult>(path, { signal: controller.signal })
             .then((data) => {
@@ -39,11 +53,24 @@ export function FbrReferenceSelect({
                 if (!controller.signal.aborted) setResult({ path, failed: true });
             });
         return () => controller.abort();
-    }, [requested, path, revision]);
+    }, [requested, path, revision, skipFetch]);
 
-    const single = autoSelectSingle && current?.data?.data.length === 1 ? current.data.data[0].description : null;
+    const rows = current?.data?.data || [];
+
+    useEffect(() => {
+        if (!onSelectRecord) return;
+        if (!value) {
+            onSelectRecord(null);
+            return;
+        }
+        if (rows.length === 0) return;
+        const matched = rows.find((row) => row.description.toLowerCase() === value.toLowerCase());
+        onSelectRecord(matched || null);
+    }, [rows, value, onSelectRecord]);
+
+    const single = autoSelectSingle && rows.length === 1 ? rows[0].description : null;
     const standardRate = autoSelectStandardRate
-        ? current?.data?.data.find((row) => row.description.toLowerCase().includes("standard rate"))?.description
+        ? rows.find((row) => row.description.toLowerCase().includes("standard rate"))?.description
         : null;
 
     useEffect(() => {
@@ -51,8 +78,16 @@ export function FbrReferenceSelect({
         else if (!value && single) onChange(single);
     }, [single, standardRate, value, onChange]);
 
-    const options = (current?.data?.data || []).map((row) => ({ value: row.description, label: row.description }));
+    const options = rows.map((row) => ({ value: row.description, label: row.description }));
     if (value && !options.some((option) => option.value === value)) options.push({ value, label: value });
+
+    function handleSelectChange(nextValue: string) {
+        onChange(nextValue);
+        if (onSelectRecord) {
+            const matched = rows.find((row) => row.description === nextValue) || null;
+            onSelectRecord(matched);
+        }
+    }
 
     return (
         <div className="fbr-reference-field">
@@ -60,25 +95,41 @@ export function FbrReferenceSelect({
                 <Input
                     label={label}
                     value={value}
+                    onChange={(event) => {
+                        onChange(event.target.value);
+                        if (onSelectRecord) onSelectRecord(null);
+                    }}
                     error={error}
-                    required
+                    hint={hint}
+                    required={required}
+                    disabled={disabled}
                     maxLength={label.toLowerCase().includes("sale type") ? 255 : 150}
-                    placeholder={`Enter ${label.toLowerCase()}`}
-                    onChange={(event) => onChange(event.target.value)}
+                    placeholder={placeholder || "Enter reference manually"}
                 />
             ) : (
                 <Select
-                    label={label}
-                    value={value}
-                    error={error}
-                    required
-                    onFocus={() => setRequested(true)}
-                    options={[{ value: "", label: loading ? "Loading FBR options…" : `Select ${label.toLowerCase()}` }, ...options]}
-                    onChange={(event) => onChange(event.target.value)}
+            label={label}
+            value={value}
+            error={error}
+            hint={hint}
+            required={required}
+            disabled={disabled || !shouldFetch}
+            onFocus={() => setRequested(true)}
+            options={[{
+                value: "",
+                label: skipFetch
+                    ? "Select parent first"
+                    : loading
+                        ? "Loading FBR options…"
+                        : current && !current.failed && rows.length === 0
+                            ? "None applicable (0 FBR options)"
+                            : (placeholder || ("Select " + label.toLowerCase())),
+            }, ...options]}
+            onChange={(event) => handleSelectChange(event.target.value)}
                 />
             )}
 
-            {current?.failed && (
+            {shouldFetch && current?.failed && (
                 <div className="fbr-ref-toolbar" role="status">
                     <div className="fbr-ref-status">
                         <svg className="fbr-ref-status-icon" viewBox="0 0 20 20" fill="currentColor" width="14" height="14" aria-hidden="true">
@@ -87,40 +138,21 @@ export function FbrReferenceSelect({
                         <span>FBR list unavailable</span>
                     </div>
                     <div className="fbr-ref-actions">
-                        <button
-                            type="button"
-                            className="fbr-ref-btn fbr-ref-btn--retry"
-                            onClick={() => {
-                                setResult(undefined);
-                                setRevision((curr) => curr + 1);
-                            }}
-                            title="Retry loading from FBR"
-                            aria-label="Retry loading from FBR"
-                        >
+                        <button type="button" className="fbr-ref-btn fbr-ref-btn--retry" onClick={() => { setResult(undefined); setRevision((curr) => curr + 1); }} title="Retry loading from FBR" aria-label="Retry loading from FBR">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                                 <path d="M21 2v6h-6" /><path d="M3 12a9 9 0 0 1 15-6.7L21 8" /><path d="M3 22v-6h6" /><path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
                             </svg>
                             <span>Retry</span>
                         </button>
-                        <button
-                            type="button"
-                            className="fbr-ref-btn fbr-ref-btn--toggle"
-                            onClick={() => setManual((curr) => !curr)}
-                            title={manual ? "Switch to FBR dropdown" : "Type manual value"}
-                            aria-label={manual ? "Switch to FBR dropdown" : "Type manual value"}
-                        >
+                        <button type="button" className="fbr-ref-btn fbr-ref-btn--toggle" onClick={() => setManual((curr) => !curr)} title={manual ? "Switch to FBR dropdown" : "Type manual value"} aria-label={manual ? "Switch to FBR dropdown" : "Type manual value"}>
                             {manual ? (
                                 <>
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                        <polyline points="6 9 12 15 18 9" />
-                                    </svg>
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg>
                                     <span>Use Dropdown</span>
                                 </>
                             ) : (
                                 <>
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                        <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                                    </svg>
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>
                                     <span>Type Manually</span>
                                 </>
                             )}
@@ -129,17 +161,11 @@ export function FbrReferenceSelect({
                 </div>
             )}
 
-            {manual && !current?.failed && (
+            {shouldFetch && manual && !current?.failed && (
                 <div className="fbr-ref-toolbar" role="status">
                     <span className="field-hint" style={{ margin: 0 }}>Manual entry — FBR verification pending.</span>
-                    <button
-                        type="button"
-                        className="fbr-ref-btn fbr-ref-btn--toggle"
-                        onClick={() => setManual(false)}
-                    >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                            <polyline points="6 9 12 15 18 9" />
-                        </svg>
+                    <button type="button" className="fbr-ref-btn fbr-ref-btn--toggle" onClick={() => setManual(false)}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg>
                         <span>Use Dropdown</span>
                     </button>
                 </div>

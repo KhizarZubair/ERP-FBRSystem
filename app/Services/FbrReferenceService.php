@@ -169,13 +169,18 @@ class FbrReferenceService
                 throw new RuntimeException('Reference request failed.');
             }
             $payload = $response->json();
-            if (! is_array($payload) || ! array_is_list($payload) || $payload === [] || count($payload) > 50000) {
+            $allowsEmpty = in_array($kind, ['sro-schedules', 'sro-items'], true);
+            if (! is_array($payload) || ! array_is_list($payload) || (! $allowsEmpty && $payload === []) || count($payload) > 50000) {
                 throw new RuntimeException('Invalid reference response.');
             }
             $records = [];
             foreach ($payload as $row) {
-                $code = $row[$idField] ?? null;
-                $description = $row[$descriptionField] ?? null;
+                if (! is_array($row)) {
+                    throw new RuntimeException('Invalid reference row.');
+                }
+                $lowerRow = array_change_key_case($row, CASE_LOWER);
+                $code = $row[$idField] ?? $lowerRow[strtolower($idField)] ?? null;
+                $description = $row[$descriptionField] ?? $lowerRow[strtolower($descriptionField)] ?? null;
                 if (! is_array($row) || ! (is_string($code) || is_int($code)) || ! is_string($description) || trim($description) === '' ||
                     ($kind === 'hs' && ! preg_match('/^[0-9]{4}\.[0-9]{4}$/', (string) $code))) {
                     throw new RuntimeException('Invalid reference row.');

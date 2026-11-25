@@ -8,6 +8,28 @@ import { itemApi, itemDraft } from "./itemApi";
 import type { ItemDraft, ItemRecord } from "./itemApi";
 import { HsCodeSelect } from "./HsCodeSelect";
 
+function parseTaxRatePercent(rateLabel: string): string {
+    const trimmed = rateLabel.trim();
+    if (!trimmed || trimmed.toLowerCase().includes("exempt")) {
+        return "0";
+    }
+    const percentMatch = trimmed.match(/([0-9]+(?:\.[0-9]+)?)\s*%/);
+    if (percentMatch) {
+        const numeric = Number(percentMatch[1]);
+        if (Number.isFinite(numeric) && numeric >= 0 && numeric <= 100) {
+            return percentMatch[1];
+        }
+        return "0";
+    }
+    if (/^[0-9]+(?:\.[0-9]+)?$/.test(trimmed)) {
+        const numeric = Number(trimmed);
+        if (Number.isFinite(numeric) && numeric >= 0 && numeric <= 100) {
+            return trimmed;
+        }
+    }
+    return "0";
+}
+
 export function ItemForm({ companyId, item, onSaved, onCancel }: {
     companyId: number; item?: ItemRecord; onSaved: (item: ItemRecord) => void; onCancel: () => void;
 }) {
@@ -15,6 +37,7 @@ export function ItemForm({ companyId, item, onSaved, onCancel }: {
     const [unitPrice, setUnitPrice] = useState(item?.current_unit_price || "");
     const [dynamicRates, setDynamicRates] = useState<{ code: string; description: string }[]>([]);
     const [ratesLoading, setRatesLoading] = useState(false);
+    const [selectedSroId, setSelectedSroId] = useState<string>("");
     const [errors, setErrors] = useState<FieldErrors>({});
     const [message, setMessage] = useState("");
     const [busy, setBusy] = useState(false);
@@ -46,7 +69,9 @@ export function ItemForm({ companyId, item, onSaved, onCancel }: {
         name: key, value: draft[key] || "", error: errors[key]?.[0],
         onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => change(key, event.target.value),
     });
-    const isExemptOrZero = draft.tax_rate_label === "Exempt" || draft.tax_rate_label === "0%" || draft.tax_rate_percent === "0";
+    const isExemptOrZero = draft.tax_rate_label.toLowerCase().includes("exempt") || draft.tax_rate_label.trim() === "0%";
+    const matchedRate = dynamicRates.find(r => r.description.toLowerCase() === (draft.tax_rate_label || "").toLowerCase());
+    const selectedRateId = matchedRate && /^[0-9]+$/.test(matchedRate.code) ? matchedRate.code : "";
     
     const standardRates = ["18%", "0%", "Exempt", "1%", "5%", "10%", "12%", "15%"];
     const rateOptions = dynamicRates.length > 0
@@ -92,14 +117,15 @@ export function ItemForm({ companyId, item, onSaved, onCancel }: {
                 <FbrReferenceSelect label="Sale type" path={`/api/v1/companies/${companyId}/fbr/sale-types?limit=50`} value={draft.sale_type} onChange={value => change("sale_type", value)} error={errors.sale_type?.[0]} autoSelectStandardRate />
                 <Select
                     label={`Sales Tax Rate${ratesLoading ? " (Loading FBR rates…)" : ""}`}
+                    error={errors.tax_rate_percent?.[0] || errors.tax_rate_label?.[0]}
                     required
                     options={rateOptions}
                     value={draft.tax_rate_label}
                     onChange={event => {
                         const val = event.target.value;
                         change("tax_rate_label", val);
-                        const numericPercent = val.toLowerCase().includes("exempt") ? "0" : val.replace(/[^0-9.]/g, "");
-                        change("tax_rate_percent", numericPercent || "0");
+                        change("tax_rate_percent", parseTaxRatePercent(val));
+                        setSelectedSroId("");
                     }}
                 />
                 <Input label="Unit Price (Excl. Tax)" type="number" min="0.01" step="0.01" required placeholder="e.g. 500.00" value={unitPrice} error={errors.unit_price?.[0]} onChange={event => { setUnitPrice(event.target.value); setErrors(current => ({ ...current, unit_price: [] })); }} />
@@ -126,19 +152,34 @@ export function ItemForm({ companyId, item, onSaved, onCancel }: {
                     hint="Mandatory for 3rd Schedule (FMCG). FBR calculates tax on Retail Price × Quantity (Sec 3(2)(a))."
                     {...field("fixed_notified_value_or_retail_price")}
                 />
-                <Input
+                <FbrReferenceSelect
                     label="SRO Schedule Number"
-                    maxLength={100}
-                    placeholder="e.g. Sixth Schedule, Table-1"
-                    hint="Official FBR SRO Schedule Number (for Exempt/Reduced rate items)"
-                    {...field("sro_schedule_no")}
+                    path={"/api/v1/companies/" + companyId + "/fbr/sro-schedules?rate_id=" + encodeURIComponent(selectedRateId) + "&limit=100"}
+                    value={draft.sro_schedule_no || ""}
+                    onChange={val => {
+                        change("sro_schedule_no", val);
+                        if (!val) {
+                            setSelectedSroId("");
+                            change("sro_item_serial_no", "");
+                        }
+                    }}
+                    onSelectRecord={record => setSelectedSroId(record?.code || "")}
+                    error={errors.sro_schedule_no?.[0]}
+                    hint="Loaded from FBR SRO Schedule API (5.7) based on selected Sales Tax Rate."
+                    placeholder="Select FBR SRO Schedule (optional)"
+                    required={false}
+                    skipFetch={!selectedRateId}
                 />
-                <Input
+                <FbrReferenceSelect
                     label="SRO Item Serial Number"
-                    maxLength={100}
-                    placeholder="e.g. Item 12(i)"
-                    hint="Item serial number within the SRO Schedule"
-                    {...field("sro_item_serial_no")}
+                    path={"/api/v1/companies/" + companyId + "/fbr/sro-items?sro_id=" + encodeURIComponent(selectedSroId) + "&limit=100"}
+                    value={draft.sro_item_serial_no || ""}
+                    onChange={val => change("sro_item_serial_no", val)}
+                    error={errors.sro_item_serial_no?.[0]}
+                    hint="Loaded from FBR SRO Item API (5.10) based on selected SRO Schedule."
+                    placeholder="Select FBR Item Serial (optional)"
+                    required={false}
+                    skipFetch={!selectedSroId}
                 />
                 <Input
                     label="Federal Excise Duty (FED Payable)"

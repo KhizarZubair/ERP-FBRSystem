@@ -119,23 +119,71 @@ class FbrReferenceController extends Controller
     {
         $workspace = $this->access->company($request->user(), $company);
         $data = $request->validate([
-            'date' => ['required', 'date_format:d-M-Y'], 'rate_id' => ['required', 'integer', 'min:1'],
-            'province_id' => ['required', 'integer', 'min:1'],
+            'date' => ['sometimes', 'nullable', 'string'],
+            'rate_id' => ['required', 'integer', 'min:1'],
+            'province_id' => ['sometimes', 'nullable', 'integer', 'min:1'],
+            'province' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'limit' => ['sometimes', 'integer', 'min:1', 'max:200'],
         ]);
 
-        return response()->json($this->references->searchCatalog($this->references->sroSchedules(
-            $workspace, $data['rate_id'], $data['date'], $data['province_id']
-        )));
+        try {
+            $formattedDate = ! empty($data['date'])
+                ? \Carbon\Carbon::parse($data['date'])->format('d-M-Y')
+                : now()->format('d-M-Y');
+        } catch (\Throwable) {
+            $formattedDate = now()->format('d-M-Y');
+        }
+
+        $provinceId = $data['province_id'] ?? null;
+        if (empty($provinceId)) {
+            $provinceName = ($data['province'] ?? null) ?: $workspace->province;
+            if ($provinceName) {
+                try {
+                    $provincesCatalog = $this->references->provinces($workspace);
+                    foreach ($provincesCatalog['records'] as $code => $desc) {
+                        if (strcasecmp($desc, $provinceName) === 0 || str_contains(strtolower($desc), strtolower($provinceName))) {
+                            $provinceId = (int) $code;
+                            break;
+                        }
+                    }
+                } catch (\Throwable) {
+                    $provinceId = 1;
+                }
+            }
+        }
+        $provinceId = (int) ($provinceId ?: 1);
+
+        return response()->json($this->references->searchCatalog(
+            $this->references->sroSchedules($workspace, (int) $data['rate_id'], $formattedDate, $provinceId),
+            (string) ($data['search'] ?? ''),
+            (int) ($data['limit'] ?? 50)
+        ));
     }
 
     public function sroItems(Request $request, int $company): JsonResponse
     {
         $workspace = $this->access->company($request->user(), $company);
-        $data = $request->validate(['date' => ['required', 'date_format:Y-m-d'], 'sro_id' => ['required', 'integer', 'min:1']]);
+        $data = $request->validate([
+            'date' => ['sometimes', 'nullable', 'string'],
+            'sro_id' => ['required', 'integer', 'min:1'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'limit' => ['sometimes', 'integer', 'min:1', 'max:200'],
+        ]);
 
-        return response()->json($this->references->searchCatalog($this->references->sroItems(
-            $workspace, $data['date'], $data['sro_id']
-        )));
+        try {
+            $formattedDate = ! empty($data['date'])
+                ? \Carbon\Carbon::parse($data['date'])->toDateString()
+                : now()->toDateString();
+        } catch (\Throwable) {
+            $formattedDate = now()->toDateString();
+        }
+
+        return response()->json($this->references->searchCatalog(
+            $this->references->sroItems($workspace, $formattedDate, (int) $data['sro_id']),
+            (string) ($data['search'] ?? ''),
+            (int) ($data['limit'] ?? 100)
+        ));
     }
 
     public function buyerVerification(Request $request, int $company): JsonResponse

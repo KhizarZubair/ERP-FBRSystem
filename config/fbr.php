@@ -69,6 +69,8 @@ return [
         'FMCG',
         'All Other Sectors',
     ],
+    // Standard Further Tax rate under Sales Tax Act Section 3(1A) for unregistered buyers.
+    'further_tax_rate_percent' => (float) env('FBR_FURTHER_TAX_RATE', 4),
     'reference_cache_store' => env('FBR_REFERENCE_CACHE_STORE', 'file'),
     'reference_fresh_seconds' => 86400,
     'reference_retention_seconds' => 604800,

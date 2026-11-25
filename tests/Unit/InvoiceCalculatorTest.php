@@ -133,4 +133,123 @@ class InvoiceCalculatorTest extends TestCase
         $this->assertSame('30.000000', $totals['further_tax']);
         $this->assertSame('1818.000000', $totals['total_values']);
     }
+
+    public function test_sn017_fed_in_st_mode_compound_formula(): void
+    {
+        $result = app(InvoiceCalculator::class)->line([
+            'quantity' => '2.000000', 'unit_price' => '100.000000', 'tax_rate_percent' => '18',
+            'tax_rate_label' => '18% and Rs. 80 per Liter', 'sale_type' => 'Goods (FED in ST Mode)',
+        ], 0, ['scenario_id' => 'SN017']);
+        $this->assertSame('200.000000', $result['value_sales_excluding_st']);
+        $this->assertSame('224.800000', $result['sales_tax_applicable']);
+        $this->assertSame('424.800000', $result['total_values']);
+    }
+
+    public function test_sn021_cement_fixed_rate_formula(): void
+    {
+        $result = app(InvoiceCalculator::class)->line([
+            'quantity' => '50.000000', 'unit_price' => '1000.000000', 'tax_rate_percent' => '2',
+            'tax_rate_label' => 'Rs.2', 'sale_type' => 'Cement /Concrete Block',
+        ], 0);
+        $this->assertSame('50000.000000', $result['value_sales_excluding_st']);
+        $this->assertSame('100.000000', $result['sales_tax_applicable']);
+        $this->assertSame('50100.000000', $result['total_values']);
+    }
+
+    public function test_sn022_potassium_chlorate_formula(): void
+    {
+        $result = app(InvoiceCalculator::class)->line([
+            'quantity' => '3.000000', 'unit_price' => '1000.000000', 'tax_rate_percent' => '18',
+            'tax_rate_label' => '18% along with rupees 60 per kilogram', 'sale_type' => 'Potassium Chlorate',
+        ], 0, ['scenario_id' => 'SN022']);
+        $this->assertSame('3000.000000', $result['value_sales_excluding_st']);
+        $this->assertSame('720.000000', $result['sales_tax_applicable']);
+        $this->assertSame('3720.000000', $result['total_values']);
+    }
+
+    public function test_sn009_cotton_ginners_allows_zero_or_full_withheld_tax(): void
+    {
+        $calculator = app(InvoiceCalculator::class);
+        $zero = $calculator->line([
+            'quantity' => '1.000000', 'unit_price' => '1000.000000', 'tax_rate_percent' => '18',
+            'sale_type' => 'Cotton Ginners', 'sales_tax_withheld_at_source' => '0',
+        ], 0, ['scenario_id' => 'SN009']);
+        $this->assertSame('0.000000', $zero['sales_tax_withheld_at_source']);
+        $this->assertSame('1180.000000', $zero['total_values']);
+        $full = $calculator->line([
+            'quantity' => '1.000000', 'unit_price' => '1000.000000', 'tax_rate_percent' => '18',
+            'sale_type' => 'Cotton Ginners', 'sales_tax_withheld_at_source' => '180.000000',
+        ], 0, ['scenario_id' => 'SN009']);
+        $this->assertSame('180.000000', $full['sales_tax_withheld_at_source']);
+        $this->assertSame('1000.000000', $full['total_values']);
+    }
+
+    public function test_sn009_cotton_ginners_rejects_partial_withheld_tax(): void
+    {
+        $this->expectException(ValidationException::class);
+        app(InvoiceCalculator::class)->line([
+            'quantity' => '1.000000', 'unit_price' => '1000.000000', 'tax_rate_percent' => '18',
+            'sale_type' => 'Cotton Ginners', 'sales_tax_withheld_at_source' => '50.000000',
+        ], 0, ['scenario_id' => 'SN009']);
+    }
+
+
+    public function test_sn002_auto_calculates_configured_four_percent_further_tax_when_omitted(): void
+    {
+        config(['fbr.further_tax_rate_percent' => 4]);
+
+
+        $result = app(InvoiceCalculator::class)->line([
+            'quantity' => '2.000000',
+            'unit_price' => '500.000000',
+            'tax_rate_percent' => '18',
+            'sale_type' => 'Goods at Standard Rate (default)',
+        ], 0, [
+            'scenario_id' => 'SN002',
+            'buyer_registration_type' => 'Unregistered',
+        ]);
+
+
+        $this->assertSame('1000.000000', $result['value_sales_excluding_st']);
+        $this->assertSame('180.000000', $result['sales_tax_applicable']);
+        $this->assertSame('40.000000', $result['further_tax']);
+        $this->assertSame('1220.000000', $result['total_values']);
+    }
+
+
+    public function test_further_tax_rate_follows_backend_config_and_allows_explicit_zero_exemption(): void
+    {
+        config(['fbr.further_tax_rate_percent' => 5]);
+
+        $auto = app(InvoiceCalculator::class)->line([
+            'quantity' => '1.000000',
+            'unit_price' => '1000.000000',
+            'tax_rate_percent' => '18',
+        ], 0, ['buyer_registration_type' => 'Unregistered']);
+
+        $this->assertSame('50.000000', $auto['further_tax']);
+
+        $exempt = app(InvoiceCalculator::class)->line([
+            'quantity' => '1.000000',
+            'unit_price' => '1000.000000',
+            'tax_rate_percent' => '18',
+            'further_tax' => '0',
+        ], 0, ['scenario_id' => 'SN002', 'buyer_registration_type' => 'Unregistered']);
+
+        $this->assertSame('0.000000', $exempt['further_tax']);
+    }
+
+
+    public function test_sn001_suppresses_further_tax_to_zero(): void
+    {
+        $result = app(InvoiceCalculator::class)->line([
+            'quantity' => '1.000000',
+            'unit_price' => '1000.000000',
+            'tax_rate_percent' => '18',
+            'further_tax' => '40.000000',
+        ], 0, ['scenario_id' => 'SN001', 'buyer_registration_type' => 'Registered']);
+
+        $this->assertSame('0.000000', $result['further_tax']);
+        $this->assertSame('1180.000000', $result['total_values']);
+    }
 }

@@ -5,7 +5,7 @@ export type CompanyDetails = {
  invoice_series:string; currency:string; fbr_environment:"sandbox"|"production"; can_edit:boolean;
  business_activity:string[]; sector:string[]; is_sales_tax_profile_retailer:boolean; allowed_sandbox_scenarios:string[]; certified_sandbox_scenarios?:string[];
  supported_scenarios:Record<string,{description:string;sale_type:string;buyer_registration_type:string}>;
- business_activities:string[]; sectors:string[];
+ business_activities:string[]; sectors:string[]; further_tax_rate_percent?:number;
  credentials:Record<"sandbox"|"production",{configured:boolean;status:string}>;
  client_user?: { id: number; name: string; email: string } | null;
 };

@@ -105,11 +105,11 @@ export function InvoiceForm({ id }: { id?: string }) {
                 </Card>
                 <Card title="Invoice items" actions={<Button variant="secondary" disabled={draft.lines.length >= 100} onClick={() => setDraft(value => ({ ...value, lines: [...value.lines, blankLine()] }))}>Add item</Button>}>
                     <div className="invoice-lines">
-                    {invoiceLines.map((line, index) => <InvoiceLineEditor key={line.client_key || line.id || index} line={line} index={index} companyId={company.id} invoiceDate={draft.invoice_date} scenarioId={draft.scenario_id} canRemove={draft.lines.length > 1}
+                    {invoiceLines.map((line, index) => <InvoiceLineEditor key={line.client_key || line.id || index} line={line} index={index} companyId={company.id} invoiceDate={draft.invoice_date} scenarioId={draft.scenario_id} furtherTaxRate={seller.further_tax_rate_percent ?? 4} canRemove={draft.lines.length > 1}
                         onRemove={() => setDraft(value => ({ ...value, lines: value.lines.filter((_, position) => position !== index) }))}
                         onChange={updated => updateLine(index, updated)} />)}
                     </div>
-                    <InvoiceTotals lines={invoiceLines} />
+                    <InvoiceTotals lines={invoiceLines} scenarioId={draft.scenario_id} />
                 </Card>
                 <Card title="Additional details"><Textarea label="Notes (optional)" maxLength={5000} value={draft.notes} onChange={event => update("notes", event.target.value)} />
                     <FormActions><Button variant="secondary" onClick={() => navigate("/invoices")}>Cancel</Button>

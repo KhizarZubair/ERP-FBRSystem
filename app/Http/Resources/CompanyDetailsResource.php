@@ -31,6 +31,7 @@ class CompanyDetailsResource extends JsonResource
             'certified_sandbox_scenarios' => $this->scenarioCertification?->passed_scenarios ?? [],
             'supported_scenarios' => config('fbr.supported_scenarios'),
             'business_activities' => config('fbr.business_activities'), 'sectors' => config('fbr.sectors'),
+            'further_tax_rate_percent' => (float) config('fbr.further_tax_rate_percent', 4),
             'can_edit' => $this->pivot->role->value === 'owner', 'credentials' => $credentials,
             'client_user' => $clientUser ? [
                 'id' => $clientUser->id,

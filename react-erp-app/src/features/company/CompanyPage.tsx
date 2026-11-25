@@ -46,6 +46,12 @@ function FirstCompanySetup({ onCreated }: { onCreated: () => Promise<void> }) {
             const value = (key: string) => String(form.get(key) ?? "").trim();
             const sellerNtn = value("seller_ntn");
             const sellerCnic = value("seller_cnic");
+            if (sellerCnic && !/^[0-9]{13}$/.test(sellerCnic)) {
+                setError("Seller CNIC must contain exactly 13 digits.");
+                setFieldErrors({ seller_cnic: ["Seller CNIC must contain exactly 13 digits."] });
+                setBusy(false);
+                return;
+            }
             if (!sellerNtn && !sellerCnic) {
                 setError("Please provide either Seller NTN (7 or 8 digits) or Seller CNIC (13 digits).");
                 setFieldErrors({
